@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聚会调酒助手 🍸</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        /* Custom styles moved to static/css/style.css */
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#">🍸 聚会调酒助手</a>
+    </div>
+</nav>
+
+<div class="container">
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="drink-tab" data-bs-toggle="tab" data-bs-target="#drink" type="button" role="tab">🥂 喝点什么</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory" type="button" role="tab">🍾 酒库管理</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button" role="tab">🎉 活动管理</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai" type="button" role="tab">🤖 调酒助手</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="participants-tab" data-bs-toggle="tab" data-bs-target="#participants" type="button" role="tab">👥 朋友们</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="recipes-tab" data-bs-toggle="tab" data-bs-target="#recipes" type="button" role="tab">📜 配方本</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myTabContent">
+        
+        <!-- Tab 1: 喝点什么 -->
+        <div class="tab-pane fade show active" id="drink" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h4>记录一杯</h4>
+                        <form action="/log_drink" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">当前活动 (可选)</label>
+                                <select class="form-select" name="event_id">
+                                    <option value="" selected>不关联活动</option>
+                                    {% for e in events %}
+                                    <option value="{{ e.id }}">{{ e.name }} ({{ e.date }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">谁喝的？</label>
+                                <select class="form-select" name="participant_id" required>
+                                    <option value="" selected disabled>选择朋友...</option>
+                                    {% for p in participants %}
+                                    <option value="{{ p.id }}">{{ p.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">喝了什么？</label>
+                                <input type="text" class="form-control" name="drink_name" placeholder="例如：Mojito" list="recipe_list" required>
+                                <datalist id="recipe_list">
+                                    {% for r in recipes %}
+                                    <option value="{{ r.name }}">
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">记下来 🍺</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h4>今日战况</h4>
+                        <ul class="list-group list-group-flush">
+                            {% for p in participants %}
+                                {% if p.consumptions %}
+                                <li class="list-group-item">
+                                    <strong>{{ p.name }}</strong> 喝了:
+                                    {% for c in p.consumptions %}
+                                        <span class="badge bg-info text-dark">{{ c.drink_name }}</span>
+                                    {% endfor %}
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: 酒库管理 -->
+        <div class="tab-pane fade" id="inventory" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>我的酒库</h4>
+                <button class="btn btn-success" onclick="openInventoryModal()">+ 添加库存</button>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card p-4">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>名称</th>
+                                    <th>分类</th>
+                                    <th>备注</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in inventory %}
+                                <tr>
+                                    <td>{{ item.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ item.category }}</span></td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">⋮</button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="openInventoryModal('{{ item.id }}', '{{ item.name }}', '{{ item.category }}', '{{ item.quantity }}')">编辑</a></li>
+                                                <li>
+                                                    <form action="/delete_inventory/{{ item.id }}" method="POST" onsubmit="return confirm('确定删除吗？');">
+                                                        <button type="submit" class="dropdown-item text-danger">删除</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted">还没有库存，快去买酒！</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: 活动管理 -->
+        <div class="tab-pane fade" id="events" role="tabpanel">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card p-4">
+                        <h4>发起新活动</h4>
+                        <form action="/create_event" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">活动名称</label>
+                                <input type="text" class="form-control" name="name" placeholder="例如：周末嗨皮" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">日期</label>
+                                <input type="date" class="form-control" name="date">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">描述</label>
+                                <textarea class="form-control" name="description" rows="2"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-info text-white w-100">创建活动 🎉</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card p-4">
+                        <h4>活动列表</h4>
+                        <div class="accordion" id="accordionEvents">
+                            {% for event in events %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ event.id }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ event.id }}" aria-expanded="false" aria-controls="collapse{{ event.id }}">
+                                        <strong>{{ event.name }}</strong> &nbsp; <small class="text-muted">({{ event.date }})</small>
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ event.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ event.id }}" data-bs-parent="#accordionEvents">
+                                    <div class="accordion-body">
+                                        <p>{{ event.description }}</p>
+                                        <hr>
+                                        <h5>🥂 酒单 ({{ event.recipes|length }})</h5>
+                                        <ul class="list-group mb-3">
+                                            {% for r in event.recipes %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                {{ r.name }}
+                                                <form action="/event/{{ event.id }}/remove_recipe" method="POST" class="d-inline">
+                                                    <input type="hidden" name="recipe_id" value="{{ r.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">移除</button>
+                                                </form>
+                                            </li>
+                                            {% else %}
+                                            <li class="list-group-item text-muted">暂无酒单，快去添加吧！</li>
+                                            {% endfor %}
+                                        </ul>
+                                        
+                                        <form action="/event/{{ event.id }}/add_recipe" method="POST" class="row g-2">
+                                            <div class="col-auto">
+                                                <select class="form-select" name="recipe_id" required>
+                                                    <option value="" selected disabled>添加配方到酒单...</option>
+                                                    {% for r in recipes %}
+                                                    <option value="{{ r.id }}">{{ r.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-outline-primary">添加</button>
+                                            </div>
+                                            <div class="col-auto">
+                                                <a href="/event/{{ event.id }}/stats" target="_blank" class="btn btn-warning">📊 查看统计</a>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted my-5">暂无活动</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: 调酒助手 -->
+        <div class="tab-pane fade" id="ai" role="tabpanel">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card p-4">
+                        <h4>我想喝...</h4>
+                        <p class="text-muted small">AI 会根据你的库存为你推荐。</p>
+                        <textarea id="userRequest" class="form-control mb-3" rows="4" placeholder="例如：我想喝点酸甜口味的，不要太烈，或者我想消耗一下那瓶金酒..."></textarea>
+                        <button id="btnAskAI" class="btn btn-warning w-100">✨ 帮我推荐</button>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="card p-4">
+                        <h4>AI 建议</h4>
+                        <div id="aiLoading" class="text-center d-none my-5">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">正在思考配方...</p>
+                        </div>
+                        <div id="aiResult" style="white-space: pre-wrap;"></div>
+                        
+                        <div id="saveRecipeArea" class="mt-3 d-none">
+                            <hr>
+                            <h5>保存这个配方？</h5>
+                            <form action="/save_recipe" method="POST">
+                                <input type="hidden" name="name" id="saveName">
+                                <input type="hidden" name="ingredients" id="saveIngredients">
+                                <input type="hidden" name="instructions" id="saveInstructions">
+                                <div class="mb-2">
+                                    <label>给它起个名字：</label>
+                                    <input type="text" class="form-control" id="recipeNameInput" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label>添加到活动 (可选)：</label>
+                                    <select class="form-select" name="event_id">
+                                        <option value="">不添加</option>
+                                        {% for e in events %}
+                                        <option value="{{ e.id }}">{{ e.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="button" onclick="submitRecipe()" class="btn btn-outline-success btn-sm">保存到配方本</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: 朋友们 -->
+        <div class="tab-pane fade" id="participants" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h4>添加新朋友</h4>
+                        <form action="/add_participant" method="POST" class="d-flex gap-2">
+                            <input type="text" class="form-control" name="name" placeholder="名字" required>
+                            <button type="submit" class="btn btn-primary">添加</button>
+                        </form>
+                    </div>
+                    <div class="card p-4 mt-3">
+                        <h4>朋友列表</h4>
+                        <ul class="list-group">
+                            {% for p in participants %}
+                            <li class="list-group-item">{{ p.name }}</li>
+                            {% else %}
+                            <li class="list-group-item text-muted">还没人来...</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 6: 配方本 -->
+        <div class="tab-pane fade" id="recipes" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>我的配方</h4>
+                <button class="btn btn-success" onclick="openRecipeModal()">+ 新建配方</button>
+            </div>
+            <div class="row">
+                {% for r in recipes %}
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="card-title">{{ r.name }}</h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
+                                        ⋮
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" onclick="openRecipeModal('{{ r.id }}', '{{ r.name }}', `{{ r.ingredients }}`, `{{ r.instructions }}`)">编辑</a></li>
+                                        <li>
+                                            <form action="/delete_recipe/{{ r.id }}" method="POST" onsubmit="return confirm('确定删除吗？');">
+                                                <button type="submit" class="dropdown-item text-danger">删除</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            {% if r.is_generated %}<span class="badge bg-warning text-dark mb-2">AI 生成</span>{% endif %}
+                            <p class="card-text small" style="white-space: pre-wrap;">{{ r.ingredients }}</p>
+                            <hr>
+                            <p class="card-text small text-muted">{{ r.instructions }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center text-muted my-5">暂无配方，去 AI 那里生成一个，或者手动创建一个吧！</div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Recipe Modal -->
+<div class="modal fade" id="recipeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/save_recipe" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="recipeModalTitle">新建配方</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="recipe_id" id="modalRecipeId">
+                    <div class="mb-3">
+                        <label class="form-label">配方名称</label>
+                        <input type="text" class="form-control" name="name" id="modalRecipeName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">原料</label>
+                        <textarea class="form-control" name="ingredients" id="modalRecipeIngredients" rows="3" placeholder="例如：45ml 金酒..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">制作步骤</label>
+                        <textarea class="form-control" name="instructions" id="modalRecipeInstructions" rows="3" placeholder="例如：摇和法..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Modal -->
+<div class="modal fade" id="inventoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/save_inventory" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inventoryModalTitle">添加库存</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="item_id" id="modalItemId">
+                    <div class="mb-3">
+                        <label class="form-label">名称</label>
+                        <input type="text" class="form-control" name="name" id="modalItemName" placeholder="例如：Absolut Vodka" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分类</label>
+                        <select class="form-select" name="category" id="modalItemCategory" required>
+                            <optgroup label="基酒 (Base Spirits)">
+                                <option value="Whisky">威士忌 (Whisky)</option>
+                                <option value="Brandy">白兰地 (Brandy)</option>
+                                <option value="Tequila">龙舌兰 (Tequila)</option>
+                                <option value="Gin">金酒 (Gin)</option>
+                                <option value="Rum">朗姆酒 (Rum)</option>
+                                <option value="Vodka">伏特加 (Vodka)</option>
+                                <option value="Base Spirit">其他基酒</option>
+                            </optgroup>
+                            <optgroup label="其他">
+                                <option value="Liqueur">利口酒 (Liqueur)</option>
+                                <option value="Wine">葡萄酒/起泡酒 (Wine)</option>
+                                <option value="Mixer">软饮/辅料 (Mixer)</option>
+                                <option value="Garnish">装饰 (Garnish)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">余量/备注</label>
+                        <input type="text" class="form-control" name="quantity" id="modalItemQuantity" placeholder="例如：700ml">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function openInventoryModal(id, name, category, quantity) {
+        const modal = new bootstrap.Modal(document.getElementById('inventoryModal'));
+        const title = document.getElementById('inventoryModalTitle');
+        const idInput = document.getElementById('modalItemId');
+        const nameInput = document.getElementById('modalItemName');
+        const categoryInput = document.getElementById('modalItemCategory');
+        const quantityInput = document.getElementById('modalItemQuantity');
+
+        if (id) {
+            // Edit
+            title.textContent = '编辑库存';
+            idInput.value = id;
+            nameInput.value = name;
+            categoryInput.value = category;
+            quantityInput.value = quantity;
+        } else {
+            // Add
+            title.textContent = '添加库存';
+            idInput.value = '';
+            nameInput.value = '';
+            categoryInput.value = 'Whisky'; // default
+            quantityInput.value = '';
+        }
+        modal.show();
+    }
+    function openRecipeModal(id, name, ingredients, instructions) {
+        const modal = new bootstrap.Modal(document.getElementById('recipeModal'));
+        const title = document.getElementById('recipeModalTitle');
+        const idInput = document.getElementById('modalRecipeId');
+        const nameInput = document.getElementById('modalRecipeName');
+        const ingredientsInput = document.getElementById('modalRecipeIngredients');
+        const instructionsInput = document.getElementById('modalRecipeInstructions');
+
+        if (id) {
+            // Edit Mode
+            title.textContent = '编辑配方';
+            idInput.value = id;
+            nameInput.value = name;
+            ingredientsInput.value = ingredients;
+            instructionsInput.value = instructions;
+        } else {
+            // Create Mode
+            title.textContent = '新建配方';
+            idInput.value = '';
+            nameInput.value = '';
+            ingredientsInput.value = '';
+            instructionsInput.value = '';
+        }
+        
+        modal.show();
+    }
+    document.getElementById('btnAskAI').addEventListener('click', function() {
+        const req = document.getElementById('userRequest').value;
+        const resultDiv = document.getElementById('aiResult');
+        const loadingDiv = document.getElementById('aiLoading');
+        const saveArea = document.getElementById('saveRecipeArea');
+
+        resultDiv.innerHTML = '';
+        saveArea.classList.add('d-none');
+        loadingDiv.classList.remove('d-none');
+
+        const formData = new FormData();
+        formData.append('user_request', req);
+
+        fetch('/suggest', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingDiv.classList.add('d-none');
+            resultDiv.innerHTML = data.suggestion;
+            
+            // 简单的解析尝试，为了自动填充保存表单（实际场景可能需要更复杂的解析）
+            document.getElementById('saveInstructions').value = data.suggestion;
+            document.getElementById('saveIngredients').value = "见描述"; 
+            
+            saveArea.classList.remove('d-none');
+        })
+        .catch(err => {
+            loadingDiv.classList.add('d-none');
+            resultDiv.innerHTML = '出错了: ' + err;
+        });
+    });
+
+    function submitRecipe() {
+        const name = document.getElementById('recipeNameInput').value;
+        if(!name) { alert('请填写配方名称'); return; }
+        
+        document.getElementById('saveName').value = name;
+        // 提交表单
+        document.querySelector('#saveRecipeArea form').submit();
+    }
+</script>
+</body>
+</html>

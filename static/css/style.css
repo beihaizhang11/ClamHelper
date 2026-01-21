@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&display=swap');
+
+:root {
+    /* Color Palette */
+    --bg-dark: #2b2624;       /* Deep Charcoal Wood */
+    --bg-paper: #f4f1ea;      /* Rice Paper */
+    --text-dark: #3e3634;     /* Ink Black */
+    --text-light: #e8e6e1;    /* Off-white */
+    --accent-gold: #c5a059;   /* Muted Gold */
+    --accent-gold-hover: #dcc07b;
+    --border-color: #dcd6cb;
+    
+    /* Spacing & Transition */
+    --transition-speed: 0.3s;
+}
+
+body {
+    background-color: var(--bg-dark);
+    font-family: 'Noto Serif SC', serif;
+    color: var(--text-dark);
+    line-height: 1.6;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2336302e' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Navbar */
+.navbar {
+    background-color: rgba(43, 38, 36, 0.95) !important;
+    border-bottom: 1px solid var(--accent-gold);
+    backdrop-filter: blur(5px);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-gold) !important;
+}
+
+/* Tabs */
+.nav-tabs {
+    border-bottom: 1px solid var(--accent-gold);
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-light);
+    border: none;
+    border-bottom: 3px solid transparent;
+    transition: all var(--transition-speed) ease;
+    font-weight: 500;
+    padding: 10px 20px;
+    opacity: 0.7;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--accent-gold);
+    border-color: transparent;
+    opacity: 1;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: transparent;
+    color: var(--accent-gold);
+    border-bottom: 3px solid var(--accent-gold);
+    opacity: 1;
+}
+
+/* Cards (The "Menu" Paper Look) */
+.card {
+    background-color: var(--bg-paper);
+    border: none;
+    border-radius: 2px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle texture for cards */
+.card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.card h4, .card h5 {
+    color: var(--bg-dark);
+    border-bottom: 1px solid var(--accent-gold);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    display: inline-block;
+    font-weight: 700;
+}
+
+/* Form Controls */
+.form-control, .form-select {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--text-dark);
+    border-radius: 0;
+    font-family: 'Noto Serif SC', serif;
+    padding-left: 0;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: transparent;
+    box-shadow: none;
+    border-bottom: 2px solid var(--accent-gold);
+}
+
+/* Buttons */
+.btn-primary, .btn-success, .btn-info, .btn-warning {
+    background-color: var(--bg-dark);
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+    transition: all var(--transition-speed);
+}
+
+.btn-primary:hover, .btn-success:hover, .btn-info:hover, .btn-warning:hover {
+    background-color: var(--accent-gold);
+    color: var(--bg-dark);
+    border-color: var(--accent-gold);
+}
+
+.btn-outline-primary, .btn-outline-danger, .btn-outline-success {
+    border-radius: 2px;
+}
+
+/* Tables */
+.table {
+    color: var(--text-dark);
+}
+
+.table thead th {
+    border-bottom: 2px solid var(--accent-gold);
+    font-weight: 700;
+    color: var(--bg-dark);
+}
+
+.table td, .table th {
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(197, 160, 89, 0.1);
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    border-radius: 2px;
+}
+
+.bg-secondary {
+    background-color: #8c8c8c !important;
+}
+
+.bg-info {
+    background-color: rgba(197, 160, 89, 0.2) !important;
+    color: var(--bg-dark) !important;
+    border: 1px solid var(--accent-gold);
+}
+
+/* Modal */
+.modal-content {
+    background-color: var(--bg-paper);
+    border-radius: 2px;
+    border: 1px solid var(--accent-gold);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--accent-gold);
+}
+
+.modal-footer {
+    border-top: none;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tab-pane {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-gold-hover);
+}
+
+/* Specific elements adjustments */
+#aiResult {
+    font-family: 'Noto Serif SC', serif;
+    line-height: 1.8;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 15px;
+    border-left: 3px solid var(--accent-gold);
+}
+
+.card-text.small.text-muted {
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding-bottom: 5px;
+    }
+    .nav-tabs .nav-link {
+        white-space: nowrap;
+        font-size: 0.9rem;
+    }
+}

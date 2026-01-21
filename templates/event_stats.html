@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event.name }} - 饮酒统计 📊</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Specific overrides for stats page if needed */
+        body { background-image: none; background-color: #f4f1ea; } /* Stats page can be lighter or keep dark */
+        .stat-card { margin-bottom: 20px; }
+        .text-white { color: var(--text-dark) !important; }
+        .navbar-text { color: var(--accent-gold) !important; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">🔙 返回首页</a>
+        <span class="navbar-text text-white">{{ event.name }} ({{ event.date }})</span>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="display-4">{{ event.name }} 战报</h1>
+            <p class="lead text-muted">{{ event.description }}</p>
+            <div class="badge bg-primary fs-5">总消耗: {{ stats.total_drinks }} 杯</div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Drinks Chart -->
+        <div class="col-md-6">
+            <div class="card stat-card p-3">
+                <h4 class="card-title text-center">大家都在喝什么？</h4>
+                <canvas id="drinksChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Participant Stats -->
+        <div class="col-md-6">
+            <div class="card stat-card p-3">
+                <h4 class="card-title text-center">谁是酒神？</h4>
+                <div class="list-group list-group-flush mt-3">
+                    {% for name, data in stats.by_participant.items()|sort(attribute='1.count', reverse=True) %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">{{ name }}</h5>
+                            <small class="text-muted">{{ data.drinks | join(', ') }}</small>
+                        </div>
+                        <span class="badge bg-danger rounded-pill fs-6">{{ data.count }} 杯</span>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">还没人开始喝...</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Prepare data for Chart.js
+    const drinkLabels = [{% for name, count in stats.top_drinks %}"{{ name }}",{% endfor %}];
+    const drinkData = [{% for name, count in stats.top_drinks %}{{ count }},{% endfor %}];
+
+    if (drinkLabels.length > 0) {
+        const ctx = document.getElementById('drinksChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: drinkLabels,
+                datasets: [{
+                    label: '消耗数量',
+                    data: drinkData,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)',
+                        'rgba(255, 159, 64, 0.7)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('drinksChart').parentElement.innerHTML += '<p class="text-center text-muted mt-5">暂无数据</p>';
+        document.getElementById('drinksChart').remove();
+    }
+</script>
+
+</body>
+</html>
