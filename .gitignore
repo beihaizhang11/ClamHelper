@@ -1,19 +1,34 @@
-# Python bytecode
-*.pyc
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# Flask & Database
+instance/
+*.db
+*.sqlite3
+
+# Environment Variables
+.env
 
 # Logs
 *.log
 
-# Virtualenv
-venv/
-
-# Build
-build/
-dist/
-__pycache__/
-
-# IDE
+# IDEs
 .vscode/
 .idea/
+*.swp
 
-.env
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
