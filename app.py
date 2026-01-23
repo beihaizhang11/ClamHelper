@@ -3,16 +3,22 @@ from models import db, Participant, InventoryItem, Recipe, Consumption, Event
 from services.llm_service import get_cocktail_suggestion
 import os
 from datetime import datetime
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bar.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1,
+    x_port=1
+)
 db.init_app(app)
 
 with app.app_context():
-    # 为了演示方便，这里简单地重建所有表以应用模型更改
-    # 实际生产中应使用 Flask-Migrate
-    # db.drop_all() # 慎用，会清空数据
     db.create_all()
 
 @app.route('/')
@@ -86,7 +92,6 @@ def event_stats(event_id):
     event = Event.query.get_or_404(event_id)
     consumptions = Consumption.query.filter_by(event_id=event_id).all()
     
-    # 统计数据结构：
     # stats = {
     #    'total_drinks': 10,
     #    'by_participant': {
@@ -122,15 +127,19 @@ def event_stats(event_id):
 
 @app.route('/suggest', methods=['POST'])
 def suggest():
-    # 获取当前库存
-    inventory = InventoryItem.query.all()
-    inventory_list = [f"{item.name} ({item.category})" for item in inventory]
-    
-    user_request = request.form.get('user_request', '')
-    
-    suggestion = get_cocktail_suggestion(inventory_list, user_request)
-    
-    return jsonify({'suggestion': suggestion})
+    try:
+        inventory = InventoryItem.query.all()
+        inventory_list = [f"{item.name} ({item.category})" for item in inventory]
+
+        user_request = request.form.get('user_request', '')
+        suggestion = get_cocktail_suggestion(inventory_list, user_request)
+
+        return jsonify({'suggestion': suggestion})
+
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
 
 @app.route('/save_recipe', methods=['POST'])
 def save_recipe():
@@ -138,7 +147,7 @@ def save_recipe():
     name = request.form.get('name')
     ingredients = request.form.get('ingredients')
     instructions = request.form.get('instructions')
-    event_id = request.form.get('event_id') # 可选：直接添加到活动
+    event_id = request.form.get('event_id')
     is_ai = request.form.get('is_ai') == 'true'
 
     if name:
@@ -173,8 +182,6 @@ def delete_recipe(recipe_id):
         db.session.delete(recipe)
         db.session.commit()
     return redirect(url_for('index'))
-
-# --- 新增 Event 相关路由 ---
 
 @app.route('/create_event', methods=['POST'])
 def create_event():
@@ -221,3 +228,4 @@ def remove_recipe_from_event(event_id):
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
