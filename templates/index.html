@@ -39,6 +39,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="recipes-tab" data-bs-toggle="tab" data-bs-target="#recipes" type="button" role="tab">📜 配方本</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="roulette-tab" data-bs-toggle="tab" data-bs-target="#roulette" type="button" role="tab">🎲 大转盘</button>
+        </li>
     </ul>
 
     <div class="tab-content" id="myTabContent">
@@ -392,6 +395,35 @@
             </div>
         </div>
 
+        <!-- Tab 7: 鸡尾酒大转盘 -->
+        <div class="tab-pane fade" id="roulette" role="tabpanel">
+            <div class="row justify-content-center">
+                <div class="col-md-8 text-center">
+                    <div class="card p-5" style="background-image: url('https://www.transparenttextures.com/patterns/dark-wood.png'); color: #f4f1ea;">
+                        <h2 class="mb-4" style="color: #c5a059;">🎲 命运之轮</h2>
+                        <p class="mb-5">不知道喝什么？交给命运吧！</p>
+                        
+                        <div id="roulette-wheel" class="mb-5 position-relative" style="height: 300px; width: 300px; margin: 0 auto; border: 5px solid #c5a059; border-radius: 50%; overflow: hidden; background: #333;">
+                            <!-- Wheel Content -->
+                            <div id="wheel-inner" style="width: 100%; height: 100%; transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);">
+                                <!-- Segments will be injected by JS -->
+                            </div>
+                            <!-- Pointer -->
+                            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid #fff; z-index: 10;"></div>
+                        </div>
+
+                        <div id="roulette-result" class="mb-4" style="min-height: 50px;">
+                            <h3 class="text-warning d-none" id="result-text"></h3>
+                        </div>
+
+                        <div class="d-grid gap-2 col-6 mx-auto">
+                            <button id="btnSpin" class="btn btn-warning btn-lg">🎰 开始旋转</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -683,6 +715,111 @@
                 tab.show();
             }
         }
+        
+        // Initialize Roulette
+        initRoulette();
+    });
+
+    // Roulette Logic
+    let wheelRecipes = [];
+    
+    function initRoulette() {
+        // Collect recipes from the recipe list
+        // In a real scenario, this might come from an API, but we can parse the DOM for simplicity or inject JSON
+        // Let's inject JSON for reliability
+        wheelRecipes = [
+            {% for r in recipes %}
+            "{{ r.name }}",
+            {% endfor %}
+        ];
+        
+        if (wheelRecipes.length < 2) {
+            wheelRecipes = ["Gin Tonic", "Mojito", "Highball", "Whisky Sour", "Martini", "Negroni"]; // Fallback defaults
+        }
+        
+        drawWheel();
+    }
+    
+    function drawWheel() {
+        const wheelInner = document.getElementById('wheel-inner');
+        wheelInner.innerHTML = '';
+        const colors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+        
+        const segmentAngle = 360 / wheelRecipes.length;
+        
+        wheelRecipes.forEach((name, index) => {
+            const segment = document.createElement('div');
+            const rotation = index * segmentAngle;
+            const color = colors[index % colors.length];
+            
+            segment.style.cssText = `
+                position: absolute;
+                width: 50%;
+                height: 2px;
+                top: 50%;
+                left: 50%;
+                background: ${color};
+                transform-origin: 0 0;
+                transform: rotate(${rotation}deg);
+                height: 100%;
+                top: 0;
+                left: 50%;
+                width: 50%;
+                transform-origin: 0 50%;
+                clip-path: polygon(0 50%, 100% 0, 100% 100%);
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                padding-right: 20px;
+                box-sizing: border-box;
+            `;
+            
+            // Text Label
+            const text = document.createElement('span');
+            text.innerText = name;
+            text.style.cssText = `
+                color: white;
+                font-weight: bold;
+                text-shadow: 1px 1px 2px black;
+                white-space: nowrap;
+                font-size: 14px;
+            `;
+            
+            segment.appendChild(text);
+            wheelInner.appendChild(segment);
+        });
+    }
+    
+    let currentRotation = 0;
+    
+    document.getElementById('btnSpin').addEventListener('click', function() {
+        const wheelInner = document.getElementById('wheel-inner');
+        const resultText = document.getElementById('result-text');
+        const btn = document.getElementById('btnSpin');
+        
+        resultText.classList.add('d-none');
+        btn.disabled = true;
+        
+        // Random spin: at least 5 full rotations + random segment
+        const segmentAngle = 360 / wheelRecipes.length;
+        const randomSegmentIndex = Math.floor(Math.random() * wheelRecipes.length);
+        const extraDegrees = (360 - (randomSegmentIndex * segmentAngle)) - (segmentAngle / 2); // Center of segment
+        
+        const spinDegrees = 1800 + extraDegrees + (Math.random() * 20 - 10); // Add some noise
+        
+        currentRotation += spinDegrees;
+        
+        wheelInner.style.transform = `rotate(${currentRotation}deg)`;
+        
+        setTimeout(() => {
+            const winner = wheelRecipes[randomSegmentIndex];
+            resultText.innerText = `🎉 命运选择了：${winner}！`;
+            resultText.classList.remove('d-none');
+            resultText.classList.add('fade-in');
+            btn.disabled = false;
+            
+            // Optional: Confetti or sound effect here
+        }, 4000);
     });
 </script>
 </body>
