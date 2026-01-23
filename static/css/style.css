@@ -227,14 +227,45 @@ body {
 
 /* Mobile Optimization */
 @media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
     .nav-tabs {
         flex-wrap: nowrap;
         overflow-x: auto;
         justify-content: flex-start;
         padding-bottom: 5px;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid rgba(197, 160, 89, 0.3);
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        -webkit-overflow-scrolling: touch;
+    }
+    .nav-tabs::-webkit-scrollbar {
+        display: none;
     }
     .nav-tabs .nav-link {
         white-space: nowrap;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        padding: 10px 15px;
+    }
+
+    .card {
+        margin-bottom: 15px;
+    }
+    
+    .card h4, .card h5 {
+        font-size: 1.25rem;
+    }
+
+    /* Better touch targets for buttons */
+    .btn {
+        padding: 10px 15px;
+    }
+    
+    /* Adjust modal for mobile */
+    .modal-dialog {
+        margin: 10px;
     }
 }

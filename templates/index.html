@@ -47,7 +47,7 @@
         <div class="tab-pane fade show active" id="drink" role="tabpanel">
             <div class="row">
                 <div class="col-md-6">
-                    <div class="card p-4">
+                    <div class="card p-3 p-md-4">
                         <h4>记录一杯</h4>
                         <form action="/log_drink" method="POST">
                             <div class="mb-3">
@@ -82,7 +82,7 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card p-4">
+                    <div class="card p-3 p-md-4">
                         <h4>今日战况</h4>
                         <ul class="list-group list-group-flush">
                             {% for p in participants %}
@@ -109,41 +109,43 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <div class="card p-4">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>名称</th>
-                                    <th>分类</th>
-                                    <th>备注</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in inventory %}
-                                <tr>
-                                    <td>{{ item.name }}</td>
-                                    <td><span class="badge bg-secondary">{{ item.category }}</span></td>
-                                    <td>{{ item.quantity }}</td>
-                                    <td>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">⋮</button>
-                                            <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="#" onclick="openInventoryModal('{{ item.id }}', '{{ item.name }}', '{{ item.category }}', '{{ item.quantity }}')">编辑</a></li>
-                                                <li>
-                                                    <form action="/delete_inventory/{{ item.id }}" method="POST" onsubmit="return confirm('确定删除吗？');">
-                                                        <button type="submit" class="dropdown-item text-danger">删除</button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="4" class="text-center text-muted">还没有库存，快去买酒！</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="card p-3 p-md-4">
+                        <div class="table-responsive">
+                            <table class="table table-hover text-nowrap">
+                                <thead>
+                                    <tr>
+                                        <th>名称</th>
+                                        <th>分类</th>
+                                        <th>备注</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in inventory %}
+                                    <tr>
+                                        <td>{{ item.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ item.category }}</span></td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">⋮</button>
+                                                <ul class="dropdown-menu">
+                                                    <li><a class="dropdown-item" href="#" onclick="openInventoryModal('{{ item.id }}', '{{ item.name }}', '{{ item.category }}', '{{ item.quantity }}')">编辑</a></li>
+                                                    <li>
+                                                        <form action="/delete_inventory/{{ item.id }}" method="POST" onsubmit="return confirm('确定删除吗？');">
+                                                            <button type="submit" class="dropdown-item text-danger">删除</button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="4" class="text-center text-muted">还没有库存，快去买酒！</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -153,7 +155,7 @@
         <div class="tab-pane fade" id="events" role="tabpanel">
             <div class="row">
                 <div class="col-md-4">
-                    <div class="card p-4">
+                    <div class="card p-3 p-md-4">
                         <h4>发起新活动</h4>
                         <form action="/create_event" method="POST">
                             <div class="mb-3">
@@ -173,7 +175,7 @@
                     </div>
                 </div>
                 <div class="col-md-8">
-                    <div class="card p-4">
+                    <div class="card p-3 p-md-4">
                         <h4>活动列表</h4>
                         <div class="accordion" id="accordionEvents">
                             {% for event in events %}
@@ -247,7 +249,7 @@
                     <div class="tab-content" id="pills-tabContent">
                         <!-- Direct Mode -->
                         <div class="tab-pane fade show active" id="pills-direct" role="tabpanel">
-                            <div class="card p-4">
+                            <div class="card p-3 p-md-4">
                                 <h4>我想喝...</h4>
                                 <p class="text-muted small">AI 会根据你的库存为你推荐。</p>
                                 <textarea id="userRequest" class="form-control mb-3" rows="4" placeholder="例如：我想喝点酸甜口味的，不要太烈，或者我想消耗一下那瓶金酒..."></textarea>
@@ -257,7 +259,7 @@
                         
                         <!-- Omakase Mode -->
                         <div class="tab-pane fade" id="pills-omakase" role="tabpanel">
-                            <div class="card p-4" style="background-color: #fdfbf7;">
+                            <div class="card p-3 p-md-4" style="background-color: #fdfbf7;">
                                 <h4>Omakase · 厨师发办</h4>
                                 <p class="text-muted small">把一切交给 Kenji 吧。</p>
                                 <div class="mb-3">
@@ -288,7 +290,7 @@
                 </div>
                 
                 <div class="col-md-7">
-                    <div class="card p-4">
+                    <div class="card p-3 p-md-4">
                         <h4>AI 建议</h4>
                         <div id="aiLoading" class="text-center d-none my-5">
                             <div class="spinner-border text-warning" role="status">
@@ -330,14 +332,14 @@
         <div class="tab-pane fade" id="participants" role="tabpanel">
             <div class="row">
                 <div class="col-md-6">
-                    <div class="card p-4">
+                    <div class="card p-3 p-md-4">
                         <h4>添加新朋友</h4>
                         <form action="/add_participant" method="POST" class="d-flex gap-2">
                             <input type="text" class="form-control" name="name" placeholder="名字" required>
                             <button type="submit" class="btn btn-primary">添加</button>
                         </form>
                     </div>
-                    <div class="card p-4 mt-3">
+                    <div class="card p-3 p-md-4 mt-3">
                         <h4>朋友列表</h4>
                         <ul class="list-group">
                             {% for p in participants %}
