@@ -186,7 +186,8 @@ def suggest():
         user_request = request.form.get('user_request', '')
         suggestion = get_cocktail_suggestion(inventory_list, user_request)
 
-        return jsonify({'suggestion': suggestion})
+        # suggestion is now a dict
+        return jsonify(suggestion)
 
     except Exception as e:
         return jsonify({
@@ -203,7 +204,8 @@ def omakase():
         weather = request.form.get('weather', '晴朗')
         
         suggestion = get_omakase_suggestion(inventory_list, mood, weather)
-        return jsonify({'suggestion': suggestion})
+        # suggestion is now a dict
+        return jsonify(suggestion)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
