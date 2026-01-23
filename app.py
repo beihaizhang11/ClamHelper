@@ -36,11 +36,11 @@ def add_participant():
         p = Participant(name=name)
         db.session.add(p)
         db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='participants'))
 
 @app.route('/add_inventory', methods=['POST'])
 def add_inventory():
-    return redirect(url_for('index')) # Deprecated, use save_inventory
+    return redirect(url_for('index', _anchor='inventory')) # Deprecated, use save_inventory
 
 @app.route('/save_inventory', methods=['POST'])
 def save_inventory():
@@ -63,7 +63,7 @@ def save_inventory():
             item = InventoryItem(name=name, category=category, quantity=quantity)
             db.session.add(item)
             db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='inventory'))
 
 @app.route('/delete_inventory/<int:item_id>', methods=['POST'])
 def delete_inventory(item_id):
@@ -71,7 +71,7 @@ def delete_inventory(item_id):
     if item:
         db.session.delete(item)
         db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='inventory'))
 
 @app.route('/log_drink', methods=['POST'])
 def log_drink():
@@ -85,7 +85,7 @@ def log_drink():
             log.event_id = event_id
         db.session.add(log)
         db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='drink'))
 
 @app.route('/event/<int:event_id>/stats')
 def event_stats(event_id):
@@ -173,7 +173,7 @@ def save_recipe():
                     event.recipes.append(recipe)
                     db.session.commit()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='recipes'))
 
 @app.route('/delete_recipe/<int:recipe_id>', methods=['POST'])
 def delete_recipe(recipe_id):
@@ -181,7 +181,7 @@ def delete_recipe(recipe_id):
     if recipe:
         db.session.delete(recipe)
         db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='recipes'))
 
 @app.route('/create_event', methods=['POST'])
 def create_event():
@@ -200,7 +200,7 @@ def create_event():
         event = Event(name=name, date=event_date, description=description)
         db.session.add(event)
         db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='events'))
 
 @app.route('/event/<int:event_id>/add_recipe', methods=['POST'])
 def add_recipe_to_event(event_id):
@@ -212,7 +212,7 @@ def add_recipe_to_event(event_id):
         event.recipes.append(recipe)
         db.session.commit()
         
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='events'))
 
 @app.route('/event/<int:event_id>/remove_recipe', methods=['POST'])
 def remove_recipe_from_event(event_id):
@@ -224,7 +224,7 @@ def remove_recipe_from_event(event_id):
         event.recipes.remove(recipe)
         db.session.commit()
         
-    return redirect(url_for('index'))
+    return redirect(url_for('index', _anchor='events'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
