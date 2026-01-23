@@ -5,6 +5,9 @@ All notable changes to the **ClamHelper** project will be documented in this fil
 ## [Unreleased]
 
 ### Added
+- **Omakase Mode**: 新增 AI 调酒师 "Kenji" 的厨师发办模式，根据心情和天气推荐特调。
+- **Share Card**: 活动统计页面新增“生成酒单卡片”功能，支持一键生成并下载包含 AI 总结的日式战报图片。
+- **Structured AI Response**: AI 服务升级为返回严格 JSON 格式，支持前端自动填充配方名称、原料和步骤，优化保存体验。
 - **UI Visual Overhaul**: 全面升级为“日式调酒酒吧”风格。
     - 引入 `style.css`，采用深色木纹背景、米白纸质卡片和哑光金配色。
     - 字体更新为衬线体 (Noto Serif SC)。
