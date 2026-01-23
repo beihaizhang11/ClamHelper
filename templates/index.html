@@ -233,13 +233,59 @@
         <div class="tab-pane fade" id="ai" role="tabpanel">
             <div class="row">
                 <div class="col-md-5">
-                    <div class="card p-4">
-                        <h4>我想喝...</h4>
-                        <p class="text-muted small">AI 会根据你的库存为你推荐。</p>
-                        <textarea id="userRequest" class="form-control mb-3" rows="4" placeholder="例如：我想喝点酸甜口味的，不要太烈，或者我想消耗一下那瓶金酒..."></textarea>
-                        <button id="btnAskAI" class="btn btn-warning w-100">✨ 帮我推荐</button>
+                    <!-- Mode Selection -->
+                    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pills-direct-tab" data-bs-toggle="pill" data-bs-target="#pills-direct" type="button">🎯 具体要求</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="pills-omakase-tab" data-bs-toggle="pill" data-bs-target="#pills-omakase" type="button">🍶 Omakase (心情)</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="pills-tabContent">
+                        <!-- Direct Mode -->
+                        <div class="tab-pane fade show active" id="pills-direct" role="tabpanel">
+                            <div class="card p-4">
+                                <h4>我想喝...</h4>
+                                <p class="text-muted small">AI 会根据你的库存为你推荐。</p>
+                                <textarea id="userRequest" class="form-control mb-3" rows="4" placeholder="例如：我想喝点酸甜口味的，不要太烈，或者我想消耗一下那瓶金酒..."></textarea>
+                                <button id="btnAskAI" class="btn btn-warning w-100">✨ 帮我推荐</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Omakase Mode -->
+                        <div class="tab-pane fade" id="pills-omakase" role="tabpanel">
+                            <div class="card p-4" style="background-color: #fdfbf7;">
+                                <h4>Omakase · 厨师发办</h4>
+                                <p class="text-muted small">把一切交给 Kenji 吧。</p>
+                                <div class="mb-3">
+                                    <label class="form-label">今日心情</label>
+                                    <select class="form-select" id="omakaseMood">
+                                        <option value="平静">😌 平静 (Calm)</option>
+                                        <option value="开心">😄 开心 (Happy)</option>
+                                        <option value="疲惫">😫 疲惫 (Tired)</option>
+                                        <option value="忧郁">😔 忧郁 (Melancholy)</option>
+                                        <option value="兴奋">🤩 兴奋 (Excited)</option>
+                                        <option value="想醉">🥴 想醉 (Wanna get drunk)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">窗外天气</label>
+                                    <select class="form-select" id="omakaseWeather">
+                                        <option value="晴朗">☀️ 晴朗 (Sunny)</option>
+                                        <option value="下雨">🌧️ 下雨 (Rainy)</option>
+                                        <option value="阴天">☁️ 阴天 (Cloudy)</option>
+                                        <option value="下雪">❄️ 下雪 (Snowy)</option>
+                                        <option value="闷热">🥵 闷热 (Humid)</option>
+                                    </select>
+                                </div>
+                                <button id="btnOmakase" class="btn btn-dark w-100">🥃 请 Kenji 特调</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
                 <div class="col-md-7">
                     <div class="card p-4">
                         <h4>AI 建议</h4>
@@ -247,7 +293,7 @@
                             <div class="spinner-border text-warning" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
-                            <p class="mt-2">正在思考配方...</p>
+                            <p class="mt-2" id="loadingText">正在思考配方...</p>
                         </div>
                         <div id="aiResult" style="white-space: pre-wrap;"></div>
                         
@@ -482,20 +528,20 @@
         
         modal.show();
     }
-    document.getElementById('btnAskAI').addEventListener('click', function() {
-        const req = document.getElementById('userRequest').value;
+
+    // Unified AI Request Function
+    function requestAI(endpoint, formData, loadingMsg="正在思考配方...") {
         const resultDiv = document.getElementById('aiResult');
         const loadingDiv = document.getElementById('aiLoading');
+        const loadingText = document.getElementById('loadingText');
         const saveArea = document.getElementById('saveRecipeArea');
 
         resultDiv.innerHTML = '';
         saveArea.classList.add('d-none');
         loadingDiv.classList.remove('d-none');
+        loadingText.innerText = loadingMsg;
 
-        const formData = new FormData();
-        formData.append('user_request', req);
-
-        fetch('/suggest', {
+        fetch(endpoint, {
             method: 'POST',
             body: formData
         })
@@ -504,7 +550,7 @@
             loadingDiv.classList.add('d-none');
             resultDiv.innerHTML = data.suggestion;
             
-            // 简单的解析尝试，为了自动填充保存表单（实际场景可能需要更复杂的解析）
+            // Simple parsing for auto-fill
             document.getElementById('saveInstructions').value = data.suggestion;
             document.getElementById('saveIngredients').value = "见描述"; 
             
@@ -514,6 +560,24 @@
             loadingDiv.classList.add('d-none');
             resultDiv.innerHTML = '出错了: ' + err;
         });
+    }
+
+    // Direct Ask
+    document.getElementById('btnAskAI').addEventListener('click', function() {
+        const req = document.getElementById('userRequest').value;
+        const formData = new FormData();
+        formData.append('user_request', req);
+        requestAI('/suggest', formData);
+    });
+
+    // Omakase Ask
+    document.getElementById('btnOmakase').addEventListener('click', function() {
+        const mood = document.getElementById('omakaseMood').value;
+        const weather = document.getElementById('omakaseWeather').value;
+        const formData = new FormData();
+        formData.append('mood', mood);
+        formData.append('weather', weather);
+        requestAI('/omakase', formData, "Kenji 正在擦拭酒杯，思考人生...");
     });
 
     function submitRecipe() {

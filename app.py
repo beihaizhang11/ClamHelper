@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from models import db, Participant, InventoryItem, Recipe, Consumption, Event
-from services.llm_service import get_cocktail_suggestion
+from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
 import os
 from datetime import datetime
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -125,6 +125,58 @@ def event_stats(event_id):
     
     return render_template('event_stats.html', event=event, stats=stats)
 
+@app.route('/event/<int:event_id>/get_summary', methods=['POST'])
+def get_event_summary(event_id):
+    event = Event.query.get_or_404(event_id)
+    consumptions = Consumption.query.filter_by(event_id=event_id).all()
+    
+    # Calculate stats for summary
+    stats = {
+        'total_drinks': len(consumptions),
+        'by_participant': {},
+        'drink_counts': {}
+    }
+    for c in consumptions:
+        p_name = c.participant.name
+        if p_name not in stats['by_participant']:
+            stats['by_participant'][p_name] = {'count': 0, 'drinks': []}
+        stats['by_participant'][p_name]['count'] += 1
+        stats['by_participant'][p_name]['drinks'].append(c.drink_name)
+        
+        if c.drink_name not in stats['drink_counts']:
+            stats['drink_counts'][c.drink_name] = 0
+        stats['drink_counts'][c.drink_name] += 1
+        
+    # Format stats for LLM
+    stats_text = f"总共喝了 {stats['total_drinks']} 杯。\n"
+    
+    # MVP
+    mvp = None
+    max_count = 0
+    for name, data in stats['by_participant'].items():
+        if data['count'] > max_count:
+            max_count = data['count']
+            mvp = name
+    
+    if mvp:
+        stats_text += f"今日酒神 (MVP)：{mvp}，喝了 {max_count} 杯。\n"
+    
+    stats_text += "大家喝了：\n"
+    for drink, count in stats['drink_counts'].items():
+        stats_text += f"- {drink}: {count} 杯\n"
+        
+    summary = generate_event_summary(event.name, str(event.date), stats_text)
+    
+    top_drinks = sorted(stats['drink_counts'].items(), key=lambda x: x[1], reverse=True)[:5]
+
+    return jsonify({
+        'summary': summary,
+        'mvp': mvp,
+        'mvp_count': max_count,
+        'top_drinks': top_drinks
+    })
+
+
 @app.route('/suggest', methods=['POST'])
 def suggest():
     try:
@@ -140,6 +192,20 @@ def suggest():
         return jsonify({
             'error': str(e)
         }), 500
+
+@app.route('/omakase', methods=['POST'])
+def omakase():
+    try:
+        inventory = InventoryItem.query.all()
+        inventory_list = [f"{item.name} ({item.category})" for item in inventory]
+        
+        mood = request.form.get('mood', '平静')
+        weather = request.form.get('weather', '晴朗')
+        
+        suggestion = get_omakase_suggestion(inventory_list, mood, weather)
+        return jsonify({'suggestion': suggestion})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/save_recipe', methods=['POST'])
 def save_recipe():
