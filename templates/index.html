@@ -403,13 +403,11 @@
                         <h2 class="mb-4" style="color: #c5a059;">🎲 命运之轮</h2>
                         <p class="mb-5">不知道喝什么？交给命运吧！</p>
                         
-                        <div id="roulette-wheel" class="mb-5 position-relative" style="height: 300px; width: 300px; margin: 0 auto; border: 5px solid #c5a059; border-radius: 50%; overflow: hidden; background: #333;">
-                            <!-- Wheel Content -->
-                            <div id="wheel-inner" style="width: 100%; height: 100%; transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);">
-                                <!-- Segments will be injected by JS -->
-                            </div>
+                        <div id="roulette-wheel" class="mb-5 position-relative" style="height: 320px; width: 320px; margin: 0 auto; overflow: hidden;">
+                            <!-- Canvas Wheel -->
+                            <canvas id="wheelCanvas" width="320" height="320" style="width: 100%; height: 100%; transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);"></canvas>
                             <!-- Pointer -->
-                            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid #fff; z-index: 10;"></div>
+                            <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid #c5a059; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); z-index: 10;"></div>
                         </div>
 
                         <div id="roulette-result" class="mb-4" style="min-height: 50px;">
@@ -741,75 +739,151 @@
     }
     
     function drawWheel() {
-        const wheelInner = document.getElementById('wheel-inner');
-        wheelInner.innerHTML = '';
-        const colors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+        const canvas = document.getElementById('wheelCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const cx = width / 2;
+        const cy = height / 2;
+        const radius = width / 2 - 10; // Margin for border
         
-        const segmentAngle = 360 / wheelRecipes.length;
+        ctx.clearRect(0, 0, width, height);
         
-        wheelRecipes.forEach((name, index) => {
-            const segment = document.createElement('div');
-            const rotation = index * segmentAngle;
-            const color = colors[index % colors.length];
+        // Japanese Traditional Colors
+        const colors = [
+            '#8e2936', // 绯色 (Deep Red)
+            '#1e50a2', // 琉璃色 (Deep Blue)
+            '#d0af4c', // 芥子色 (Mustard)
+            '#5c7a29', // 抹茶色 (Matcha Green)
+            '#5b3e78', // 茄子色 (Deep Purple)
+            '#583822', // 焦茶色 (Dark Brown)
+            '#2f5d50', // 铁纳户 (Teal)
+            '#ca8269'  // 洗朱 (Pale Vermilion)
+        ];
+        
+        const numSegments = wheelRecipes.length;
+        const arc = 2 * Math.PI / numSegments;
+        
+        // Draw Segments
+        for (let i = 0; i < numSegments; i++) {
+            const angle = i * arc - Math.PI / 2; // Start from top (-90deg)
             
-            segment.style.cssText = `
-                position: absolute;
-                width: 50%;
-                height: 2px;
-                top: 50%;
-                left: 50%;
-                background: ${color};
-                transform-origin: 0 0;
-                transform: rotate(${rotation}deg);
-                height: 100%;
-                top: 0;
-                left: 50%;
-                width: 50%;
-                transform-origin: 0 50%;
-                clip-path: polygon(0 50%, 100% 0, 100% 100%);
-                display: flex;
-                align-items: center;
-                justify-content: flex-end;
-                padding-right: 20px;
-                box-sizing: border-box;
-            `;
+            ctx.beginPath();
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, angle, angle + arc);
+            ctx.lineTo(cx, cy);
+            ctx.fill();
             
-            // Text Label
-            const text = document.createElement('span');
-            text.innerText = name;
-            text.style.cssText = `
-                color: white;
-                font-weight: bold;
-                text-shadow: 1px 1px 2px black;
-                white-space: nowrap;
-                font-size: 14px;
-            `;
+            // Segment Border
+            ctx.strokeStyle = '#c5a059';
+            ctx.lineWidth = 2;
+            ctx.stroke();
             
-            segment.appendChild(text);
-            wheelInner.appendChild(segment);
-        });
+            // Draw Text
+            ctx.save();
+            ctx.fillStyle = '#f4f1ea';
+            ctx.font = 'bold 14px "Noto Serif SC", serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            
+            const textAngle = angle + arc / 2;
+            ctx.translate(cx + Math.cos(textAngle) * (radius - 20), cy + Math.sin(textAngle) * (radius - 20));
+            ctx.rotate(textAngle);
+            
+            const text = wheelRecipes[i];
+            // Truncate if too long
+            const maxTextWidth = radius * 0.65;
+            let displayText = text;
+            if (ctx.measureText(displayText).width > maxTextWidth) {
+                while (ctx.measureText(displayText + '...').width > maxTextWidth && displayText.length > 0) {
+                    displayText = displayText.slice(0, -1);
+                }
+                displayText += '...';
+            }
+            
+            ctx.fillText(displayText, 0, 0);
+            ctx.restore();
+        }
+        
+        // Draw Outer Border
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = '#c5a059';
+        ctx.stroke();
+        
+        // Draw Inner Center Circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, 25, 0, 2 * Math.PI);
+        ctx.fillStyle = '#333';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#c5a059';
+        ctx.stroke();
+        
+        // Decorative Center Star
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+        ctx.fillStyle = '#c5a059';
+        ctx.fill();
     }
     
     let currentRotation = 0;
     
     document.getElementById('btnSpin').addEventListener('click', function() {
-        const wheelInner = document.getElementById('wheel-inner');
+        const canvas = document.getElementById('wheelCanvas');
         const resultText = document.getElementById('result-text');
         const btn = document.getElementById('btnSpin');
         
         resultText.classList.add('d-none');
         btn.disabled = true;
         
-        // Random spin: at least 5 full rotations + random segment
-        const segmentAngle = 360 / wheelRecipes.length;
-        const randomSegmentIndex = Math.floor(Math.random() * wheelRecipes.length);
-        const extraDegrees = (360 - (randomSegmentIndex * segmentAngle)) - (segmentAngle / 2); // Center of segment
+        // Random spin
+        const numSegments = wheelRecipes.length;
+        const segmentAngleDeg = 360 / numSegments;
+        const randomSegmentIndex = Math.floor(Math.random() * numSegments);
         
-        const spinDegrees = 1800 + extraDegrees + (Math.random() * 20 - 10); // Add some noise
+        // Calculate stop angle to point to the chosen segment at TOP
+        // Since we drew segment 0 starting at -90deg (12 o'clock), 
+        // to get segment i to top, we need to rotate negative direction or adjust target
+        // Let's simplify: 
+        // We rotate the CANVAS. 
+        // If we rotate N degrees clockwise, the segment at -N degrees moves to top.
+        // Segment i center is at: -90 + i*arc + arc/2 (degrees)
+        // We want this angle to end up at -90 (or 270) after rotation.
+        // Rotation + (StartAngle) = TargetPosition
+        // We want TargetPosition = 270 (Top)
+        // StartAngle of segment center = i * segmentAngle + segmentAngle/2
+        // We draw starting at -90. So visual angle is i * segmentAngle.
+        // Actually, let's just use the visual rotation logic.
+        // To land on index i:
+        // The pointer is fixed at top.
+        // Segment 0 is at [0, arc].
+        // To bring segment i to top, we need to rotate the wheel such that segment i is at top.
+        // Top is 270deg or -90deg.
+        // Segment i starts at i*arc.
+        // We need to rotate by: 360 - (i * segmentAngle + segmentAngle/2) + extra spins
+        
+        const segmentCenterAngle = randomSegmentIndex * segmentAngleDeg + segmentAngleDeg / 2;
+        const stopAngle = 360 - segmentCenterAngle; // Degrees to rotate to bring this to 0 (which is top in our draw logic? Wait, we drew 0 at -90)
+        
+        // Correction: In drawWheel, segment 0 starts at -90 (Top).
+        // So segment 0 is ALREADY at top.
+        // Segment i is at (i * segmentAngle) clockwise from top.
+        // To bring segment i to top, we must rotate COUNTER-CLOCKWISE by (i * segmentAngle)
+        // OR rotate CLOCKWISE by (360 - i * segmentAngle).
+        // Let's target the center of the segment.
+        
+        const targetRotation = 360 - (randomSegmentIndex * segmentAngleDeg + segmentAngleDeg / 2);
+        const spinDegrees = 1800 + targetRotation + (Math.random() * 10 - 5); // 5 full spins + target + jitter
         
         currentRotation += spinDegrees;
         
-        wheelInner.style.transform = `rotate(${currentRotation}deg)`;
+        // Adjust for cumulative rotation to keep it clean (optional, but CSS transform handles large numbers fine)
+        
+        canvas.style.transform = `rotate(${currentRotation}deg)`;
         
         setTimeout(() => {
             const winner = wheelRecipes[randomSegmentIndex];
@@ -817,8 +891,6 @@
             resultText.classList.remove('d-none');
             resultText.classList.add('fade-in');
             btn.disabled = false;
-            
-            // Optional: Confetti or sound effect here
         }, 4000);
     });
 </script>
