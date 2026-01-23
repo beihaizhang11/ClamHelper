@@ -1,42 +1,55 @@
 import os
 import requests
+import json
+import re
 
 DASHSCOPE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+
+def _clean_json_string(s):
+    """Attempt to extract and clean JSON string from LLM response"""
+    s = s.strip()
+    # Try to find JSON block
+    match = re.search(r"```json\s*(.*?)\s*```", s, re.DOTALL)
+    if match:
+        s = match.group(1)
+    elif s.startswith("```"):
+        s = s.strip("`")
+    return s
 
 def get_cocktail_suggestion(inventory_list, user_request):
     api_key = os.environ.get("DASHSCOPE_API_KEY")
 
     if not api_key:
-        return (
-            "提示：未检测到 DASHSCOPE_API_KEY，正在使用模拟模式。\n\n"
-            "推荐：经典金汤力 (Gin & Tonic)\n"
-            "- 金酒 45ml\n- 通宁水\n- 柠檬角\n"
-        )
+        return {
+            "name": "经典金汤力 (Gin & Tonic) [模拟]",
+            "ingredients": "- 金酒 45ml\n- 通宁水\n- 柠檬角",
+            "instructions": "1. 在杯中加满冰块。\n2. 倒入金酒。\n3. 缓缓倒入通宁水。\n4. 搅拌并挤入柠檬汁。",
+            "comment": "模拟模式：未配置 API Key。"
+        }
 
     inventory_str = ", ".join(inventory_list)
+
+    prompt = f"""
+    我是一个家庭调酒师。我有以下酒水库存：{inventory_str}。
+    用户的具体要求是：{user_request}。
+    
+    请根据我的库存推荐一款鸡尾酒。
+    
+    【重要】请务必返回标准的 JSON 格式，不要包含任何其他文字。
+    JSON 结构如下：
+    {{
+        "name": "鸡尾酒名称 (中英文)",
+        "ingredients": "配料列表 (每行一个)",
+        "instructions": "制作步骤 (清晰明了)",
+        "comment": "简短的推荐理由或口感描述"
+    }}
+    """
 
     payload = {
         "model": "qwen-plus",
         "messages": [
-            {"role": "system", "content": "你是一位专业的调酒师。"},
-            {
-                "role": "user",
-                "content": f"""
-我有以下酒水库存：
-{inventory_str}
-
-用户需求：
-{user_request}
-
-请推荐一款鸡尾酒（只能一种），包含：
-1. 名称
-2. 配方
-3. 制作步骤
-4. 只用给我以上三个步骤的内容，去除其他不必要的文字
-
-中文回答。
-"""
-            }
+            {"role": "system", "content": "你是一位专业的调酒师助手。请只返回 JSON 格式的数据。"},
+            {"role": "user", "content": prompt}
         ],
         "temperature": 0.7
     }
@@ -55,7 +68,142 @@ def get_cocktail_suggestion(inventory_list, user_request):
         )
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
+        
+        # Parse JSON
+        try:
+            cleaned_content = _clean_json_string(content)
+            return json.loads(cleaned_content)
+        except json.JSONDecodeError:
+            # Fallback for parsing error
+            return {
+                "name": "解析失败",
+                "ingredients": "见描述",
+                "instructions": content,
+                "comment": "AI 返回格式有误"
+            }
 
     except Exception as e:
-        return f"获取建议时出错: {e}"
+        return {"error": str(e)}
+
+def generate_event_summary(event_name, date_str, stats_summary):
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
+    
+    if not api_key:
+        return "今夜微醺，好友相聚。虽然没有 AI 的加持，但快乐是真实的。（模拟总结）"
+
+    prompt = f"""
+    活动名称：{event_name}
+    日期：{date_str}
+    消费统计：
+    {stats_summary}
+
+    请以一位优雅的日式酒吧老板的口吻，为这场聚会写一段简短的“今夜总结语”（100字以内）。
+    风格要求：温暖、治愈、稍微带一点点感性，类似于《深夜食堂》的旁白。
+    内容包含：对大家酒量的调侃（如果有数据支持）、对聚会氛围的总结。
+    """
+    
+    payload = {
+        "model": "qwen-plus",
+        "messages": [
+            {"role": "system", "content": "你是一位经营日式酒吧多年的老板，见惯了悲欢离合，说话温和而有深意。"},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.8
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        resp = requests.post(
+            DASHSCOPE_URL,
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"总结生成失败: {e}"
+
+def get_omakase_suggestion(inventory_list, mood, weather):
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
+    if not api_key:
+        return {
+            "name": "热托迪 (Hot Toddy) [模拟]",
+            "ingredients": "- 威士忌 45ml\n- 热水\n- 蜂蜜\n- 柠檬",
+            "instructions": "1. 混合所有材料。\n2. 搅拌均匀。\n3. 趁热饮用。",
+            "comment": "Kenji (模拟): 今天的风有点喧嚣呢... 喝杯热酒暖暖身子吧。"
+        }
+
+    inventory_str = ", ".join(inventory_list)
+    prompt = f"""
+    我是一个家庭调酒师，我有这些库存：{inventory_str}。
+    现在客人的心情是：{mood}。
+    现在的天气是：{weather}。
+
+    请你扮演一位名叫 Kenji 的日式酒吧老板（类似于《深夜食堂》的老板）。
+    请根据客人的心情和天气，以及我的库存，为他特调一杯酒。
+
+    【重要】请务必返回标准的 JSON 格式，不要包含任何其他文字。
+    JSON 结构如下：
+    {{
+        "comment": "Kenji 的开场白：一句富有哲理或温暖的话，与心情/天气有关（50字以内）",
+        "name": "推荐酒名 (中英文)",
+        "ingredients": "简易配方 (基于我的库存，每行一个)",
+        "instructions": "制作步骤",
+        "ending": "一句简单的祝福"
+    }}
+    
+    请用温暖、治愈的语气撰写 comment 和 ending。
+    """
+
+    payload = {
+        "model": "qwen-plus",
+        "messages": [
+            {"role": "system", "content": "你是一位拥有20年经验的日式酒吧老板 Kenji。请只返回 JSON 格式的数据。"},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.9 # Higher creativity
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        resp = requests.post(
+            DASHSCOPE_URL,
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        
+        # Parse JSON
+        try:
+            cleaned_content = _clean_json_string(content)
+            res_json = json.loads(cleaned_content)
+            # Combine ending into comment or separate? Let's keep them structured but maybe combine for display
+            # But the user wants structured fields for saving.
+            # We can put 'ending' into instructions or just keep it in JSON.
+            return res_json
+        except json.JSONDecodeError:
+            return {
+                "name": "解析失败",
+                "ingredients": "见描述",
+                "instructions": content,
+                "comment": "Kenji 似乎喝醉了..."
+            }
+            
+    except Exception as e:
+        return {"error": str(e)}
+
+
