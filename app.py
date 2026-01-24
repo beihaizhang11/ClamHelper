@@ -1,9 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from models import db, Participant, InventoryItem, Recipe, Consumption, Event, RecipeIngredient
 from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
 import os
 from datetime import datetime, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
+import io
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.colors import black, gray, HexColor
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bar.db'
@@ -336,6 +342,168 @@ def delete_recipe(recipe_id):
         db.session.delete(recipe)
         db.session.commit()
     return redirect(url_for('index', _anchor='recipes'))
+
+from reportlab.lib.units import mm
+
+@app.route('/generate_menu', methods=['POST'])
+def generate_menu():
+    recipe_ids = request.form.getlist('selected_recipes')
+    recipes = Recipe.query.filter(Recipe.id.in_(recipe_ids)).all()
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    # Fonts
+    # 强制使用本地字体文件，避免系统差异
+    # 将字体文件 simkai.ttf 放入项目根目录下的 fonts 文件夹中
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    font_path = os.path.join(base_dir, 'fonts', 'simkai.ttf')
+    
+    font_name = 'Helvetica' # Fallback
+    
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('KaiTi', font_path))
+            font_name = 'KaiTi'
+        except Exception as e:
+            print(f"Font loading error: {e}")
+            # Fallback to system font if local fails (dev environment)
+            sys_font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+            if os.path.exists(sys_font_path):
+                 try:
+                    pdfmetrics.registerFont(TTFont('KaiTi', sys_font_path))
+                    font_name = 'KaiTi'
+                 except:
+                     pass
+    else:
+        # Fallback to system font (Windows Dev)
+        sys_font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+        if os.path.exists(sys_font_path):
+             try:
+                pdfmetrics.registerFont(TTFont('KaiTi', sys_font_path))
+                font_name = 'KaiTi'
+             except:
+                 pass
+        else:
+             print(f"Warning: Font file not found at {font_path}")
+
+    # Colors
+    bg_color = HexColor('#F9F7F2') # Warm Rice Paper
+    text_main = HexColor('#333333') # Ink Black
+    text_sub = HexColor('#5F5F5F')  # Charcoal
+    accent_color = HexColor('#C5A059') # Gold/Mustard
+    seal_red = HexColor('#B22222') # Firebrick Red for Seal
+
+    def draw_page_template(c):
+        # Background
+        c.setFillColor(bg_color)
+        c.rect(0, 0, width, height, fill=1, stroke=0)
+        
+        # Outer Border (Thin, Ink Black)
+        c.setStrokeColor(text_main)
+        c.setLineWidth(0.5)
+        c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
+        
+        # Inner Border (Very Thin, Gold)
+        c.setStrokeColor(accent_color)
+        c.setLineWidth(0.3)
+        c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
+        
+    # Draw First Page Template
+    draw_page_template(c)
+
+    # Title Area
+    # Vertical "Menu" in Kanji? Or Horizontal. 
+    # Horizontal is cleaner for this layout.
+    c.setFillColor(text_main)
+    c.setFont(font_name, 32)
+    c.drawCentredString(width / 2, height - 50*mm, "酒 单")
+    
+    # Subtitle / Date
+    c.setFont(font_name, 10)
+    c.setFillColor(text_sub)
+    date_str = datetime.now().strftime('%Y . %m . %d')
+    c.drawCentredString(width / 2, height - 60*mm, f"The Drunken Clam  |  {date_str}")
+    
+    # Red Seal (Hankou) Simulation
+    # A small red square with white character "酒" or similar, placed near title
+    seal_size = 12*mm
+    seal_x = (width / 2) + 40*mm
+    seal_y = height - 55*mm
+    c.setFillColor(seal_red)
+    c.rect(seal_x, seal_y, seal_size, seal_size, fill=1, stroke=0)
+    c.setFillColor(HexColor('#FFFFFF'))
+    c.setFont(font_name, 18)
+    # Centering text in rect is manual
+    c.drawString(seal_x + 2*mm, seal_y + 3*mm, "蛤") # "Shun" (Season)
+
+    # Content Loop
+    y_start = height - 80*mm
+    y = y_start
+    
+    # Dynamic Spacing based on count? 
+    # Fixed spacious spacing is better for elegance.
+    item_height = 35*mm
+    
+    for i, r in enumerate(recipes):
+        # Page Break Check
+        if y < 40*mm:
+            c.showPage()
+            draw_page_template(c)
+            y = height - 50*mm # Reset Y for new page (no big title)
+        
+        # Drink Name
+        c.setFont(font_name, 16)
+        c.setFillColor(text_main)
+        c.drawCentredString(width / 2, y, r.name)
+        
+        # Ingredients
+        y -= 8*mm
+        c.setFont(font_name, 10)
+        c.setFillColor(text_sub)
+        if r.ingredients:
+            # Replace newlines with a refined separator
+            ing_text = r.ingredients.replace('\r\n', '   •   ').replace('\n', '   •   ')
+            c.drawCentredString(width / 2, y, ing_text)
+        
+        # Decorative Separator (Gold Dash)
+        y -= 10*mm
+        # Only draw separator if not the last item on page (simplified)
+        c.setStrokeColor(accent_color)
+        c.setLineWidth(0.5)
+        c.line(width/2 - 10*mm, y, width/2 + 10*mm, y) # Short center line
+        
+        # Move down for next item
+        y -= 12*mm
+
+    c.save()
+    buffer.seek(0)
+    
+    # Generate filename with date
+    date_str = datetime.now().strftime('%Y%m%d')
+    
+    # Ensure UTF-8 filename encoding for browsers
+    filename = f'Menu_{date_str}.pdf'
+    
+    try:
+        filename.encode('latin-1')
+    except UnicodeEncodeError:
+        # If filename contains non-latin characters, encode it
+        from urllib.parse import quote
+        filename = quote(filename)
+        
+    response = send_file(
+        buffer, 
+        as_attachment=True, 
+        download_name=f'Menu_{date_str}.pdf', 
+        mimetype='application/pdf'
+    )
+    
+    # Force charset to UTF-8 in headers
+    response.headers["Content-Type"] = "application/pdf; charset=utf-8"
+    
+    return response
 
 @app.route('/create_event', methods=['POST'])
 def create_event():
