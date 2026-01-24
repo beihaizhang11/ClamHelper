@@ -269,6 +269,16 @@ def save_recipe():
     ing_amounts = request.form.getlist('ingredient_amount[]')
     ing_units = request.form.getlist('ingredient_unit[]')
 
+    # Always generate text from structured data if available.
+    # This ensures that edits to the structured rows are reflected in the display text,
+    # overriding any stale text sent by the hidden form field.
+    if ing_names:
+        generated_ingredients = []
+        for n, a, u in zip(ing_names, ing_amounts, ing_units):
+            if n:
+                generated_ingredients.append(f"{n} {a}{u}")
+        ingredients_text = "\n".join(generated_ingredients)
+
     if name:
         if recipe_id:
             # Update existing recipe
