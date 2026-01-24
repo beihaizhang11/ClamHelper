@@ -465,8 +465,36 @@ def generate_menu():
         if r.ingredients:
             # Replace newlines with a refined separator
             ing_text = r.ingredients.replace('\r\n', '   •   ').replace('\n', '   •   ')
-            c.drawCentredString(width / 2, y, ing_text)
-        
+            
+            # Text wrapping logic
+            max_width = width - 60*mm  # Margins: 30mm each side
+            text_width = c.stringWidth(ing_text, font_name, 10)
+            
+            if text_width <= max_width:
+                c.drawCentredString(width / 2, y, ing_text)
+            else:
+                # Simple split logic (by separator first, then simple chunking if needed)
+                # Since we replaced newlines with separators, let's try to split by separator to find good break points
+                parts = ing_text.split('   •   ')
+                lines = []
+                current_line = ""
+                
+                for part in parts:
+                    test_line = current_line + ('   •   ' if current_line else '') + part
+                    if c.stringWidth(test_line, font_name, 10) <= max_width:
+                        current_line = test_line
+                    else:
+                        if current_line:
+                            lines.append(current_line)
+                        current_line = part
+                if current_line:
+                    lines.append(current_line)
+                
+                # Draw lines
+                for line in lines:
+                    c.drawCentredString(width / 2, y, line)
+                    y -= 5*mm # Line height
+                    
         # Decorative Separator (Gold Dash)
         y -= 10*mm
         # Only draw separator if not the last item on page (simplified)
