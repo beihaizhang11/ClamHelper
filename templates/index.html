@@ -20,6 +20,13 @@
 </nav>
 
 <div class="container">
+    <!-- Global Datalists -->
+    <datalist id="inventory_list_global">
+        {% for item in inventory %}
+        <option value="{{ item.name }}">
+        {% endfor %}
+    </datalist>
+
     <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="drink-tab" data-bs-toggle="tab" data-bs-target="#drink" type="button" role="tab">🥂 喝点什么</button>
@@ -73,7 +80,8 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">喝了什么？</label>
-                                <input type="text" class="form-control" name="drink_name" placeholder="例如：Mojito" list="recipe_list" required>
+                                <!-- Using datalist for dropdown + search -->
+                                <input type="text" class="form-control" name="drink_name" placeholder="选择或输入配方..." list="recipe_list" required>
                                 <datalist id="recipe_list">
                                     {% for r in recipes %}
                                     <option value="{{ r.name }}">
@@ -308,6 +316,9 @@
                                 <input type="hidden" name="name" id="saveName">
                                 <input type="hidden" name="ingredients" id="saveIngredients">
                                 <input type="hidden" name="instructions" id="saveInstructions">
+                                <input type="hidden" name="is_ai" value="true">
+                                <div id="saveStructuredIngredients"></div>
+                                
                                 <div class="mb-2">
                                     <label>给它起个名字：</label>
                                     <input type="text" class="form-control" id="recipeNameInput" required>
@@ -362,6 +373,10 @@
             </div>
             <div class="row">
                 {% for r in recipes %}
+                {% set ingredients_json = [] %}
+                {% for ing in r.ingredients_structured %}
+                    {% set _ = ingredients_json.append({'name': ing.name, 'amount': ing.amount, 'unit': ing.unit}) %}
+                {% endfor %}
                 <div class="col-md-4 mb-3">
                     <div class="card h-100" id="recipe-card-{{ r.id }}">
                         <div class="card-body">
@@ -372,7 +387,7 @@
                                         ⋮
                                     </button>
                                     <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="#" onclick="openRecipeModal('{{ r.id }}', '{{ r.name }}', `{{ r.ingredients }}`, `{{ r.instructions }}`)">编辑</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick='openRecipeModal("{{ r.id }}", "{{ r.name }}", `{{ r.ingredients }}`, `{{ r.instructions }}`, {{ ingredients_json|tojson }})'>编辑</a></li>
                                         <li><a class="dropdown-item" href="#" onclick="generateRecipeImage('{{ r.id }}', '{{ r.name }}')">📸 生成图片</a></li>
                                         <li>
                                             <form action="/delete_recipe/{{ r.id }}" method="POST" onsubmit="return confirm('确定删除吗？');">
@@ -442,7 +457,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">原料</label>
-                        <textarea class="form-control" name="ingredients" id="modalRecipeIngredients" rows="3" placeholder="例如：45ml 金酒..."></textarea>
+                        <input type="hidden" name="ingredients" id="modalRecipeIngredientsText">
+                        <div id="ingredientRows">
+                            <!-- Dynamic Rows -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addIngredientRow()">+ 添加原料</button>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">制作步骤</label>
@@ -509,6 +528,30 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    function addIngredientRow(name='', amount='', unit='') {
+        const container = document.getElementById('ingredientRows');
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2';
+        
+        // Define common units
+        const units = ['ml', 'oz', 'dash', 'drop', 'part', 'tsp', 'tbsp', 'g', 'slice', 'wedge', 'peel', 'top up'];
+        let unitOptions = '<option value="" disabled selected>单位</option>';
+        units.forEach(u => {
+            const selected = u === unit ? 'selected' : '';
+            unitOptions += `<option value="${u}" ${selected}>${u}</option>`;
+        });
+
+        div.innerHTML = `
+            <input type="text" class="form-control" name="ingredient_name[]" placeholder="原料名 (如金酒)" value="${name}" list="inventory_list_global" required>
+            <input type="number" step="0.1" class="form-control" name="ingredient_amount[]" placeholder="数量" value="${amount}">
+            <select class="form-select" name="ingredient_unit[]" required>
+                ${unitOptions}
+            </select>
+            <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">×</button>
+        `;
+        container.appendChild(div);
+    }
+
     function openInventoryModal(id, name, category, quantity) {
         const modal = new bootstrap.Modal(document.getElementById('inventoryModal'));
         const title = document.getElementById('inventoryModalTitle');
@@ -534,28 +577,46 @@
         }
         modal.show();
     }
-    function openRecipeModal(id, name, ingredients, instructions) {
+    function openRecipeModal(id, name, ingredientsText, instructions, ingredientsJson=[]) {
         const modal = new bootstrap.Modal(document.getElementById('recipeModal'));
         const title = document.getElementById('recipeModalTitle');
         const idInput = document.getElementById('modalRecipeId');
         const nameInput = document.getElementById('modalRecipeName');
-        const ingredientsInput = document.getElementById('modalRecipeIngredients');
+        const ingredientsTextInput = document.getElementById('modalRecipeIngredientsText'); // Hidden legacy text
         const instructionsInput = document.getElementById('modalRecipeInstructions');
+        const rowsContainer = document.getElementById('ingredientRows');
+
+        rowsContainer.innerHTML = ''; // Clear rows
 
         if (id) {
             // Edit Mode
             title.textContent = '编辑配方';
             idInput.value = id;
             nameInput.value = name;
-            ingredientsInput.value = ingredients;
+            ingredientsTextInput.value = ingredientsText;
             instructionsInput.value = instructions;
+            
+            // Populate rows from JSON if available, else try to parse text?
+            // For now, if JSON is empty, maybe add one empty row or parse?
+            // Since we just migrated, old recipes have no JSON.
+            // We can add a "parse legacy" logic or just show empty row.
+            if (ingredientsJson && ingredientsJson.length > 0) {
+                ingredientsJson.forEach(ing => {
+                    addIngredientRow(ing.name, ing.amount, ing.unit);
+                });
+            } else {
+                // Legacy Fallback: Try to show text in a read-only way or just add empty row?
+                // Let's add one empty row so user can start adding structured data.
+                addIngredientRow();
+            }
         } else {
             // Create Mode
             title.textContent = '新建配方';
             idInput.value = '';
             nameInput.value = '';
-            ingredientsInput.value = '';
+            ingredientsTextInput.value = '';
             instructionsInput.value = '';
+            addIngredientRow(); // Add one empty row
         }
         
         modal.show();
@@ -601,7 +662,17 @@
             
             // Ingredients
             if (data.ingredients) {
-                htmlContent += `<h6>📝 配方：</h6><p class="small mb-3" style="white-space: pre-wrap;">${data.ingredients}</p>`;
+                // Check if array
+                if (Array.isArray(data.ingredients)) {
+                    let listHtml = '<ul class="mb-3 small">';
+                    data.ingredients.forEach(ing => {
+                        listHtml += `<li>${ing.name}: ${ing.amount} ${ing.unit}</li>`;
+                    });
+                    listHtml += '</ul>';
+                    htmlContent += `<h6>📝 配方：</h6>${listHtml}`;
+                } else {
+                    htmlContent += `<h6>📝 配方：</h6><p class="small mb-3" style="white-space: pre-wrap;">${data.ingredients}</p>`;
+                }
             }
             
             // Instructions
@@ -623,7 +694,31 @@
             
             // Fill Hidden Inputs for Save
             document.getElementById('saveName').value = data.name || "未命名配方";
-            document.getElementById('saveIngredients').value = data.ingredients || "";
+            // Legacy text field (optional, maybe construct from structured?)
+            document.getElementById('saveIngredients').value = ""; // We will build this if needed or backend handles it? 
+            // Actually LLM returns 'ingredients' as list now. We should map it to structured inputs.
+            
+            const structContainer = document.getElementById('saveStructuredIngredients');
+            structContainer.innerHTML = '';
+            if (data.ingredients && Array.isArray(data.ingredients)) {
+                 // It is an array of objects
+                 data.ingredients.forEach(ing => {
+                     const div = document.createElement('div');
+                     div.innerHTML = `
+                        <input type="hidden" name="ingredient_name[]" value="${ing.name}">
+                        <input type="hidden" name="ingredient_amount[]" value="${ing.amount}">
+                        <input type="hidden" name="ingredient_unit[]" value="${ing.unit}">
+                     `;
+                     structContainer.appendChild(div);
+                 });
+                 // Also populate the legacy text field for display/compatibility
+                 const textList = data.ingredients.map(ing => `${ing.name} ${ing.amount}${ing.unit}`).join('\n');
+                 document.getElementById('saveIngredients').value = textList;
+            } else if (data.ingredients) {
+                // Fallback string
+                document.getElementById('saveIngredients').value = data.ingredients;
+            }
+            
             document.getElementById('saveInstructions').value = data.instructions || "";
             
             // Fill Visible Name Input

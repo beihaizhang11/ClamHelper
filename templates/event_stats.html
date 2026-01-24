@@ -150,6 +150,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Ingredient Usage Stats -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card stat-card p-3">
+                <h4 class="card-title text-center">原料消耗一览 (估算)</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover text-center">
+                        <thead class="table-dark text-white">
+                            <tr>
+                                <th class="text-white">原料名称</th>
+                                <th class="text-white">总消耗量</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for name_unit, amount in stats.ingredient_usage %}
+                            <tr>
+                                <td>{{ name_unit }}</td>
+                                <td class="fw-bold">{{ amount }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="2" class="text-muted">暂无原料数据 (请确保记录时关联了详细配方)</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Share Card Modal -->

@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from models import db, Participant, InventoryItem, Recipe, Consumption, Event
+from models import db, Participant, InventoryItem, Recipe, Consumption, Event, RecipeIngredient
 from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
 import os
 from datetime import datetime, timedelta
@@ -113,6 +113,12 @@ def log_drink():
         log = Consumption(participant_id=participant_id, drink_name=drink_name)
         if event_id:
             log.event_id = event_id
+        
+        # Try to link to a recipe
+        recipe = Recipe.query.filter_by(name=drink_name).first()
+        if recipe:
+            log.recipe_id = recipe.id
+            
         db.session.add(log)
         db.session.commit()
     return redirect(url_for('index', _anchor='drink'))
@@ -122,19 +128,11 @@ def event_stats(event_id):
     event = Event.query.get_or_404(event_id)
     consumptions = Consumption.query.filter_by(event_id=event_id).all()
     
-    # stats = {
-    #    'total_drinks': 10,
-    #    'by_participant': {
-    #        'Alice': {'count': 3, 'drinks': ['Mojito', 'Gin Tonic', 'Mojito']},
-    #        'Bob': ...
-    #    },
-    #    'top_drinks': [('Mojito', 5), ('Gin Tonic', 2)]
-    # }
-    
     stats = {
         'total_drinks': len(consumptions),
         'by_participant': {},
-        'drink_counts': {}
+        'drink_counts': {},
+        'ingredient_usage': {} # New stats
     }
     
     for c in consumptions:
@@ -150,8 +148,25 @@ def event_stats(event_id):
             stats['drink_counts'][c.drink_name] = 0
         stats['drink_counts'][c.drink_name] += 1
         
+        # Ingredient Usage
+        # Priority: use linked recipe, fallback to parsing? No, just use linked recipe for now.
+        if c.recipe_id:
+            recipe = Recipe.query.get(c.recipe_id)
+            if recipe:
+                for ing in recipe.ingredients_structured:
+                    # Key by ingredient name + unit to avoid mixing units (e.g. ml vs oz)
+                    # Or normalize? Let's just key by name and assume unit consistency or display unit
+                    key = f"{ing.name} ({ing.unit})"
+                    if key not in stats['ingredient_usage']:
+                        stats['ingredient_usage'][key] = 0.0
+                    if ing.amount:
+                        stats['ingredient_usage'][key] += ing.amount
+        
     # Sort top drinks
     stats['top_drinks'] = sorted(stats['drink_counts'].items(), key=lambda x: x[1], reverse=True)
+    
+    # Sort ingredients
+    stats['ingredient_usage'] = sorted(stats['ingredient_usage'].items(), key=lambda x: x[1], reverse=True)
     
     return render_template('event_stats.html', event=event, stats=stats)
 
@@ -243,10 +258,16 @@ def omakase():
 def save_recipe():
     recipe_id = request.form.get('recipe_id')
     name = request.form.get('name')
-    ingredients = request.form.get('ingredients')
+    # Legacy text field support (still used for display if not generated)
+    ingredients_text = request.form.get('ingredients') 
     instructions = request.form.get('instructions')
     event_id = request.form.get('event_id')
     is_ai = request.form.get('is_ai') == 'true'
+    
+    # Structured Data
+    ing_names = request.form.getlist('ingredient_name[]')
+    ing_amounts = request.form.getlist('ingredient_amount[]')
+    ing_units = request.form.getlist('ingredient_unit[]')
 
     if name:
         if recipe_id:
@@ -254,15 +275,40 @@ def save_recipe():
             recipe = Recipe.query.get(recipe_id)
             if recipe:
                 recipe.name = name
-                recipe.ingredients = ingredients
                 recipe.instructions = instructions
-                # Don't change is_generated status on edit usually, or maybe set to False if heavily edited? 
-                # Keeping it simple for now.
+                recipe.ingredients = ingredients_text # Update text field too
+                
+                # Clear existing structured ingredients
+                for old_ing in recipe.ingredients_structured:
+                    db.session.delete(old_ing)
+                
+                # Add new
+                for n, a, u in zip(ing_names, ing_amounts, ing_units):
+                    if n:
+                        try:
+                            amount_val = float(a) if a else 0.0
+                        except ValueError:
+                            amount_val = 0.0
+                        new_ing = RecipeIngredient(recipe_id=recipe.id, name=n, amount=amount_val, unit=u)
+                        db.session.add(new_ing)
+                
                 db.session.commit()
         else:
             # Create new recipe
-            recipe = Recipe(name=name, ingredients=ingredients, instructions=instructions, is_generated=is_ai)
+            recipe = Recipe(name=name, ingredients=ingredients_text, instructions=instructions, is_generated=is_ai)
             db.session.add(recipe)
+            db.session.flush() # Get ID
+            
+            # Add ingredients
+            for n, a, u in zip(ing_names, ing_amounts, ing_units):
+                if n:
+                    try:
+                        amount_val = float(a) if a else 0.0
+                    except ValueError:
+                        amount_val = 0.0
+                    new_ing = RecipeIngredient(recipe_id=recipe.id, name=n, amount=amount_val, unit=u)
+                    db.session.add(new_ing)
+            
             db.session.commit()
             
             if event_id:

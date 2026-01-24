@@ -22,7 +22,11 @@ def get_cocktail_suggestion(inventory_list, user_request):
     if not api_key:
         return {
             "name": "经典金汤力 (Gin & Tonic) [模拟]",
-            "ingredients": "- 金酒 45ml\n- 通宁水\n- 柠檬角",
+            "ingredients": [
+                {"name": "金酒", "amount": 45, "unit": "ml"},
+                {"name": "通宁水", "amount": 100, "unit": "ml"},
+                {"name": "柠檬角", "amount": 1, "unit": "个"}
+            ],
             "instructions": "1. 在杯中加满冰块。\n2. 倒入金酒。\n3. 缓缓倒入通宁水。\n4. 搅拌并挤入柠檬汁。",
             "comment": "模拟模式：未配置 API Key。"
         }
@@ -39,10 +43,13 @@ def get_cocktail_suggestion(inventory_list, user_request):
     JSON 结构如下：
     {{
         "name": "鸡尾酒名称 (中英文)",
-        "ingredients": "配料列表 (每行一个)",
+        "ingredients": [
+            {{"name": "配料名", "amount": 数字(ml或g), "unit": "单位(ml/g/part/dash)"}}
+        ],
         "instructions": "制作步骤 (清晰明了)",
         "comment": "简短的推荐理由或口感描述"
     }}
+    注意：amount 必须是数字，如果是适量请估算或写0，unit 必须统一。
     """
 
     payload = {
@@ -135,7 +142,12 @@ def get_omakase_suggestion(inventory_list, mood, weather):
     if not api_key:
         return {
             "name": "热托迪 (Hot Toddy) [模拟]",
-            "ingredients": "- 威士忌 45ml\n- 热水\n- 蜂蜜\n- 柠檬",
+            "ingredients": [
+                {"name": "威士忌", "amount": 45, "unit": "ml"},
+                {"name": "热水", "amount": 100, "unit": "ml"},
+                {"name": "蜂蜜", "amount": 10, "unit": "ml"},
+                {"name": "柠檬", "amount": 1, "unit": "片"}
+            ],
             "instructions": "1. 混合所有材料。\n2. 搅拌均匀。\n3. 趁热饮用。",
             "comment": "Kenji (模拟): 今天的风有点喧嚣呢... 喝杯热酒暖暖身子吧。"
         }
@@ -154,7 +166,9 @@ def get_omakase_suggestion(inventory_list, mood, weather):
     {{
         "comment": "Kenji 的开场白：一句富有哲理或温暖的话，与心情/天气有关（50字以内）",
         "name": "推荐酒名 (中英文)",
-        "ingredients": "简易配方 (基于我的库存，每行一个)",
+        "ingredients": [
+            {{"name": "配料名", "amount": 数字(ml或g), "unit": "单位"}}
+        ],
         "instructions": "制作步骤",
         "ending": "一句简单的祝福"
     }}
