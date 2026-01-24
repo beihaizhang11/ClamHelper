@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from models import db, Participant, InventoryItem, Recipe, Consumption, Event
 from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
@@ -27,6 +27,36 @@ def index():
     inventory = InventoryItem.query.all()
     recipes = Recipe.query.all()
     events = Event.query.order_by(Event.date.desc()).all()
+
+    # Calculate 4 AM logic (Local Time)
+    now = datetime.now()
+    if now.hour < 4:
+        start_time = (now - timedelta(days=1)).replace(hour=4, minute=0, second=0, microsecond=0)
+    else:
+        start_time = now.replace(hour=4, minute=0, second=0, microsecond=0)
+    end_time = start_time + timedelta(days=1)
+
+    # Convert to UTC for DB query
+    # Calculate offset: Local - UTC
+    utc_offset = datetime.now() - datetime.utcnow()
+    start_utc = start_time - utc_offset
+    end_utc = end_time - utc_offset
+
+    todays_consumptions = Consumption.query.filter(
+        Consumption.timestamp >= start_utc, 
+        Consumption.timestamp < end_utc
+    ).all()
+
+    # Map to participants
+    consumption_map = {}
+    for c in todays_consumptions:
+        if c.participant_id not in consumption_map:
+            consumption_map[c.participant_id] = []
+        consumption_map[c.participant_id].append(c)
+
+    for p in participants:
+        p.today_consumptions = consumption_map.get(p.id, [])
+
     return render_template('index.html', participants=participants, inventory=inventory, recipes=recipes, events=events)
 
 @app.route('/add_participant', methods=['POST'])
