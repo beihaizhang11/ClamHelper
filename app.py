@@ -10,6 +10,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.colors import black, gray, HexColor
+from reportlab.lib.utils import ImageReader
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bar.db'
@@ -269,6 +270,7 @@ def save_recipe():
     instructions = request.form.get('instructions')
     event_id = request.form.get('event_id')
     is_ai = request.form.get('is_ai') == 'true'
+    recipe_type = request.form.get('recipe_type', '经典')  # Get recipe type, default to '经典'
     
     # Structured Data
     ing_names = request.form.getlist('ingredient_name[]')
@@ -293,6 +295,7 @@ def save_recipe():
                 recipe.name = name
                 recipe.instructions = instructions
                 recipe.ingredients = ingredients_text # Update text field too
+                recipe.recipe_type = recipe_type  # Update recipe type
                 
                 # Clear existing structured ingredients
                 for old_ing in recipe.ingredients_structured:
@@ -311,7 +314,7 @@ def save_recipe():
                 db.session.commit()
         else:
             # Create new recipe
-            recipe = Recipe(name=name, ingredients=ingredients_text, instructions=instructions, is_generated=is_ai)
+            recipe = Recipe(name=name, ingredients=ingredients_text, instructions=instructions, is_generated=is_ai, recipe_type=recipe_type)
             db.session.add(recipe)
             db.session.flush() # Get ID
             
@@ -424,7 +427,7 @@ def generate_menu():
     c.setFont(font_name, 10)
     c.setFillColor(text_sub)
     date_str = datetime.now().strftime('%Y . %m . %d')
-    c.drawCentredString(width / 2, height - 60*mm, f"The Drunken Clam  |  {date_str}")
+    c.drawCentredString(width / 2, height - 60*mm, f"We love the clam  |  {date_str}")
     
     # Red Seal (Hankou) Simulation
     # A small red square with white character "酒" or similar, placed near title
@@ -464,7 +467,7 @@ def generate_menu():
         c.setFillColor(text_sub)
         if r.ingredients:
             # Replace newlines with a refined separator
-            ing_text = r.ingredients.replace('\r\n', '   •   ').replace('\n', '   •   ')
+            ing_text = r.ingredients.replace('\r\n', '  |  ').replace('\n', '  |  ')
             
             # Text wrapping logic
             max_width = width - 60*mm  # Margins: 30mm each side
@@ -475,12 +478,12 @@ def generate_menu():
             else:
                 # Simple split logic (by separator first, then simple chunking if needed)
                 # Since we replaced newlines with separators, let's try to split by separator to find good break points
-                parts = ing_text.split('   •   ')
+                parts = ing_text.split('  |  ')
                 lines = []
                 current_line = ""
                 
                 for part in parts:
-                    test_line = current_line + ('   •   ' if current_line else '') + part
+                    test_line = current_line + ('  |  ' if current_line else '') + part
                     if c.stringWidth(test_line, font_name, 10) <= max_width:
                         current_line = test_line
                     else:
@@ -495,15 +498,15 @@ def generate_menu():
                     c.drawCentredString(width / 2, y, line)
                     y -= 5*mm # Line height
                     
-        # Decorative Separator (Gold Dash)
-        y -= 10*mm
-        # Only draw separator if not the last item on page (simplified)
-        c.setStrokeColor(accent_color)
-        c.setLineWidth(0.5)
-        c.line(width/2 - 10*mm, y, width/2 + 10*mm, y) # Short center line
-        
-        # Move down for next item
-        y -= 12*mm
+        # Decorative Separator (Gold Dash) - Only if not the last recipe
+        if i < len(recipes) - 1:
+            y -= 10*mm
+            c.setStrokeColor(accent_color)
+            c.setLineWidth(0.5)
+            c.line(width/2 - 10*mm, y, width/2 + 10*mm, y) # Short center line
+            y -= 12*mm
+        else:
+            y -= 10*mm
 
     c.save()
     buffer.seek(0)
@@ -523,14 +526,382 @@ def generate_menu():
         
     response = send_file(
         buffer, 
-        as_attachment=True, 
+        as_attachment=False,  # Preview in browser instead of download
         download_name=f'Menu_{date_str}.pdf', 
         mimetype='application/pdf'
     )
     
     # Force charset to UTF-8 in headers
     response.headers["Content-Type"] = "application/pdf; charset=utf-8"
+    response.headers["Content-Disposition"] = f"inline; filename=Menu_{date_str}.pdf"
     
+    return response
+
+@app.route('/generate_menu_by_spirit', methods=['POST'])
+def generate_menu_by_spirit():
+    recipe_ids = request.form.getlist('selected_recipes')
+    recipes = Recipe.query.filter(Recipe.id.in_(recipe_ids)).all()
+    inventory = InventoryItem.query.all()
+    
+    # Create inventory lookup: name -> category
+    inventory_map = {item.name.lower(): item.category for item in inventory}
+    
+    # Define base spirit categories
+    base_spirits = ['Whisky', 'Brandy', 'Tequila', 'Gin', 'Rum', 'Vodka']
+    
+    # First, separate by recipe type: 经典 and 特调
+    classic_recipes = [r for r in recipes if r.recipe_type == '经典']
+    signature_recipes = [r for r in recipes if r.recipe_type == '特调']
+    
+    # Group classic recipes by base spirit
+    grouped_classic = {spirit: [] for spirit in base_spirits}
+    grouped_classic['Other'] = []
+    
+    for recipe in classic_recipes:
+        # Find the base spirit from ingredients
+        base_spirit = None
+        for ing in recipe.ingredients_structured:
+            ing_name_lower = ing.name.lower()
+            if ing_name_lower in inventory_map:
+                category = inventory_map[ing_name_lower]
+                if category in base_spirits:
+                    base_spirit = category
+                    break
+        
+        if base_spirit:
+            grouped_classic[base_spirit].append(recipe)
+        else:
+            grouped_classic['Other'].append(recipe)
+    
+    # Remove empty categories from classic
+    grouped_classic = {k: v for k, v in grouped_classic.items() if v}
+    
+    # Generate PDF
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    # Font setup (same as original)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    font_path = os.path.join(base_dir, 'fonts', 'simkai.ttf')
+    font_name = 'Helvetica'
+    
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('KaiTi', font_path))
+            font_name = 'KaiTi'
+        except Exception as e:
+            print(f"Font loading error: {e}")
+            sys_font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+            if os.path.exists(sys_font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('KaiTi', sys_font_path))
+                    font_name = 'KaiTi'
+                except:
+                    pass
+    else:
+        sys_font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+        if os.path.exists(sys_font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('KaiTi', sys_font_path))
+                font_name = 'KaiTi'
+            except:
+                pass
+    
+    # Register QWERTYpe font for title
+    qwertype_font_path = os.path.join(base_dir, 'fonts', 'QWERTYpe.ttf')
+    title_font_name = font_name  # Default to KaiTi
+    if os.path.exists(qwertype_font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('QWERTYpe', qwertype_font_path))
+            title_font_name = 'QWERTYpe'
+        except Exception as e:
+            print(f"QWERTYpe font loading error: {e}")
+    
+    # Colors
+    bg_color = HexColor('#F9F7F2')
+    text_main = HexColor('#333333')
+    text_sub = HexColor('#5F5F5F')
+    accent_color = HexColor('#C5A059')
+    seal_red = HexColor('#B22222')
+    
+    def draw_page_template(c):
+        c.setFillColor(bg_color)
+        c.rect(0, 0, width, height, fill=1, stroke=0)
+        c.setStrokeColor(text_main)
+        c.setLineWidth(0.5)
+        c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
+        c.setStrokeColor(accent_color)
+        c.setLineWidth(0.3)
+        c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
+    
+    draw_page_template(c)
+    
+    # ========== COVER PAGE ==========
+    # Logo at top (if exists)
+    logo_path = os.path.join(base_dir, 'static', 'images', 'The Drunken Clam.png')
+    if os.path.exists(logo_path):
+        try:
+            logo_width = 120*mm
+            logo_height = 55*1.5*mm
+            logo_x = (width - logo_width) / 2
+            logo_y = height - 140*mm
+            c.drawImage(logo_path, logo_x, logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True, mask='auto')
+        except Exception as e:
+            print(f"Logo loading error: {e}")
+    
+    # Large centered title (moved down)
+    c.setFillColor(text_main)
+    c.setFont(title_font_name, 48)
+    #c.drawCentredString(width / 2, height / 2 - 10*mm, "酒 单")
+    c.drawCentredString(width / 2, height / 2 - 10*mm, "Bar Clam")
+
+    # Decorative ornament below title
+    c.setStrokeColor(accent_color)
+    c.setFillColor(accent_color)
+    
+    center_x = width / 2
+    ornament_y = height / 2 - 20*mm
+    
+    # Center cocktail glass icon
+    c.setLineWidth(0.8)
+    glass_width = 3*mm
+    glass_height = 4*mm
+    # Glass bowl (triangle)
+    path = c.beginPath()
+    path.moveTo(center_x, ornament_y - glass_height/2)
+    path.lineTo(center_x - glass_width, ornament_y + glass_height/2)
+    path.lineTo(center_x + glass_width, ornament_y + glass_height/2)
+    path.close()
+    c.drawPath(path, stroke=1, fill=0)
+    # Glass stem
+    c.line(center_x, ornament_y - glass_height/2, center_x, ornament_y - glass_height/2 - 2*mm)
+    # Glass base
+    c.line(center_x - 1.5*mm, ornament_y - glass_height/2 - 2*mm, 
+           center_x + 1.5*mm, ornament_y - glass_height/2 - 2*mm)
+    
+    # Simple horizontal lines on both sides
+    c.setStrokeColor(accent_color)
+    c.setLineWidth(0.5)
+    c.line(center_x - 6*mm, ornament_y, center_x - 50*mm, ornament_y)
+    c.line(center_x + 6*mm, ornament_y, center_x + 50*mm, ornament_y)
+    
+    # Establishment name (moved down)
+    c.setFont(font_name, 14)
+    c.setFillColor(text_sub)
+    c.drawCentredString(width / 2, height / 2 - 40*mm, "The Drunken Clam")
+    
+    # Date (moved down)
+    c.setFont(font_name, 11)
+    date_str = datetime.now().strftime('%Y . %m . %d')
+    c.drawCentredString(width / 2, height / 2 - 50*mm, date_str)
+    
+    # Red seal - moved down with title
+    seal_size = 20*mm
+    seal_x = (width / 2) + 50*mm
+    seal_y = height / 2 - 20*mm
+    c.setFillColor(seal_red)
+    c.rect(seal_x, seal_y, seal_size, seal_size, fill=1, stroke=0)
+    c.setStrokeColor(HexColor('#FFFFFF'))
+    c.setLineWidth(0.6)
+    c.rect(seal_x + 1.5*mm, seal_y + 1.5*mm, seal_size - 3*mm, seal_size - 3*mm, stroke=1, fill=0)
+    c.setFillColor(HexColor('#FFFFFF'))
+    c.setFont(font_name, 26)
+    c.drawCentredString(seal_x + seal_size/2, seal_y + 5*mm, "蛤")
+    
+    # Bottom decorative text
+    c.setFont(font_name, 9)
+    c.setFillColor(accent_color)
+    c.drawCentredString(width / 2, 40*mm, "• Crafted with Care •")
+    
+    # ========== END OF COVER PAGE ==========
+    
+    # Spirit name mapping (Category-based format)
+    spirit_names = {
+        'Gin': 'Gin Based',
+        'Whisky': 'Whisky Based',
+        'Rum': 'Rum Based',
+        'Tequila': 'Tequila Based',
+        'Brandy': 'Brandy Based',
+        'Vodka': 'Vodka Based',
+        'Other': 'Specialty'
+    }
+    
+    # Draw Classic Recipes (grouped by spirit)
+    if grouped_classic:
+        # Start on new page (page 2)
+        c.showPage()
+        draw_page_template(c)
+        y = height - 80*mm
+        
+        # Main category title: 经典
+        c.setFont(title_font_name, 32)
+        c.setFillColor(text_main)
+        # Top line
+        c.setStrokeColor(text_main)
+        c.setLineWidth(1.0)
+        c.line(width/2 - 50*mm, y + 3*mm, width/2 + 50*mm, y + 3*mm)
+        # Title
+        c.drawCentredString(width / 2, y - 8*mm, "Classics")
+        # Bottom line
+        c.line(width/2 - 50*mm, y - 13*mm, width/2 + 50*mm, y - 13*mm)
+        y -= 30*mm
+        
+        for spirit, recipes_in_group in grouped_classic.items():
+            # Check if need new page
+            if y < 80*mm:
+                c.showPage()
+                draw_page_template(c)
+                y = height - 50*mm
+            
+            # Spirit Category Title
+            c.setFont(font_name, 22)
+            c.setFillColor(accent_color)
+            spirit_display = spirit_names.get(spirit, spirit)
+            c.drawCentredString(width / 2, y, f"━━ {spirit_display} ━━")
+            y -= 15*mm
+            
+            # Draw recipes in this group
+            for idx, r in enumerate(recipes_in_group):
+                if y < 40*mm:
+                    c.showPage()
+                    draw_page_template(c)
+                    y = height - 50*mm
+                
+                # Recipe Name
+                c.setFont(font_name, 16)
+                c.setFillColor(text_main)
+                c.drawCentredString(width / 2, y, r.name)
+                
+                # Ingredients
+                y -= 8*mm
+                c.setFont(font_name, 10)
+                c.setFillColor(text_sub)
+                if r.ingredients:
+                    ing_text = r.ingredients.replace('\r\n', '  |  ').replace('\n', '  |  ')
+                    max_width = width - 60*mm
+                    text_width = c.stringWidth(ing_text, font_name, 10)
+                    
+                    if text_width <= max_width:
+                        c.drawCentredString(width / 2, y, ing_text)
+                    else:
+                        parts = ing_text.split('  |  ')
+                        lines = []
+                        current_line = ""
+                        for part in parts:
+                            test_line = current_line + ('  |  ' if current_line else '') + part
+                            if c.stringWidth(test_line, font_name, 10) <= max_width:
+                                current_line = test_line
+                            else:
+                                if current_line:
+                                    lines.append(current_line)
+                                current_line = part
+                        if current_line:
+                            lines.append(current_line)
+                        
+                        for line in lines:
+                            c.drawCentredString(width / 2, y, line)
+                            y -= 5*mm
+                
+                # Separator - Only if not the last recipe in this group
+                if idx < len(recipes_in_group) - 1:
+                    y -= 10*mm
+                    c.setStrokeColor(accent_color)
+                    c.setLineWidth(0.5)
+                    c.line(width/2 - 10*mm, y, width/2 + 10*mm, y)
+                    y -= 12*mm
+                else:
+                    y -= 10*mm
+            
+            # Add extra space after each category
+            y -= 5*mm
+    
+    # Draw Signature Recipes (特调)
+    if signature_recipes:
+        # Force new page for signature section
+        c.showPage()
+        draw_page_template(c)
+        y = height - 80*mm
+        
+        # Main category title: 特调
+        c.setFont(title_font_name, 32)
+        c.setFillColor(text_main)
+        # Top line
+        c.setStrokeColor(text_main)
+        c.setLineWidth(1.0)
+        c.line(width/2 - 50*mm, y + 3*mm, width/2 + 50*mm, y + 3*mm)
+        # Title
+        c.drawCentredString(width / 2, y - 8*mm, "Signature")
+        # Bottom line
+        c.line(width/2 - 50*mm, y - 13*mm, width/2 + 50*mm, y - 13*mm)
+        y -= 25*mm
+        
+        # Draw signature recipes directly
+        for idx, r in enumerate(signature_recipes):
+            if y < 40*mm:
+                c.showPage()
+                draw_page_template(c)
+                y = height - 50*mm
+            
+            # Recipe Name
+            c.setFont(font_name, 16)
+            c.setFillColor(text_main)
+            c.drawCentredString(width / 2, y, r.name)
+            
+            # Ingredients
+            y -= 8*mm
+            c.setFont(font_name, 10)
+            c.setFillColor(text_sub)
+            if r.ingredients:
+                ing_text = r.ingredients.replace('\r\n', '  |  ').replace('\n', '  |  ')
+                max_width = width - 60*mm
+                text_width = c.stringWidth(ing_text, font_name, 10)
+                
+                if text_width <= max_width:
+                    c.drawCentredString(width / 2, y, ing_text)
+                else:
+                    parts = ing_text.split('  |  ')
+                    lines = []
+                    current_line = ""
+                    for part in parts:
+                        test_line = current_line + ('  |  ' if current_line else '') + part
+                        if c.stringWidth(test_line, font_name, 10) <= max_width:
+                            current_line = test_line
+                        else:
+                            if current_line:
+                                lines.append(current_line)
+                            current_line = part
+                    if current_line:
+                        lines.append(current_line)
+                    
+                    for line in lines:
+                        c.drawCentredString(width / 2, y, line)
+                        y -= 5*mm
+            
+            # Separator - Only if not the last signature recipe
+            if idx < len(signature_recipes) - 1:
+                y -= 10*mm
+                c.setStrokeColor(accent_color)
+                c.setLineWidth(0.5)
+                c.line(width/2 - 10*mm, y, width/2 + 10*mm, y)
+                y -= 12*mm
+            else:
+                y -= 10*mm
+    
+    c.save()
+    buffer.seek(0)
+    
+    date_str = datetime.now().strftime('%Y%m%d')
+    filename = f'Menu_BySpirit_{date_str}.pdf'
+    
+    response = send_file(
+        buffer,
+        as_attachment=False,  # Preview in browser instead of download
+        download_name=filename,
+        mimetype='application/pdf'
+    )
+    response.headers["Content-Type"] = "application/pdf; charset=utf-8"
+    response.headers["Content-Disposition"] = f"inline; filename={filename}"
     return response
 
 @app.route('/create_event', methods=['POST'])

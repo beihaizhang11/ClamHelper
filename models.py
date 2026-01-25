@@ -26,7 +26,8 @@ class Recipe(db.Model):
     name = db.Column(db.String(100), nullable=False)
     ingredients = db.Column(db.Text, nullable=True) # Legacy text field
     instructions = db.Column(db.Text, nullable=False)
-    is_generated = db.Column(db.Boolean, default=False) 
+    is_generated = db.Column(db.Boolean, default=False)
+    recipe_type = db.Column(db.String(20), default='经典')  # '经典' or '特调'
     # New relationship
     ingredients_structured = db.relationship('RecipeIngredient', backref='recipe', lazy=True, cascade="all, delete-orphan")
 

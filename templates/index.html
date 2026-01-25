@@ -372,6 +372,7 @@
                 <h4>我的配方</h4>
                 <div>
                     <button type="submit" class="btn me-2" style="background-color: #fdfbf7; border-color: #333; color: #333;">📜 生成日式酒单 (PDF)</button>
+                    <button type="button" class="btn me-2" style="background-color: #c5a059; border-color: #333; color: #fff;" onclick="generateMenuBySpirit()">🥃 按基酒分类酒单 (测试)</button>
                     <button type="button" class="btn btn-success" onclick="openRecipeModal()">+ 新建配方</button>
                 </div>
             </div>
@@ -398,7 +399,7 @@
                                         ⋮
                                     </button>
                                     <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="#" onclick='openRecipeModal("{{ r.id }}", "{{ r.name }}", `{{ r.ingredients }}`, `{{ r.instructions }}`, {{ ingredients_json|tojson }})'>编辑</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick='openRecipeModal("{{ r.id }}", "{{ r.name }}", `{{ r.ingredients }}`, `{{ r.instructions }}`, {{ ingredients_json|tojson }}, "{{ r.recipe_type }}")'>编辑</a></li>
                                         <li><a class="dropdown-item" href="#" onclick="generateRecipeImage('{{ r.id }}', '{{ r.name }}')">📸 生成图片</a></li>
                                         <li>
                                             <!-- Form nesting issue workaround: Use AJAX or separate form for delete -->
@@ -467,6 +468,13 @@
                     <div class="mb-3">
                         <label class="form-label">配方名称</label>
                         <input type="text" class="form-control" name="name" id="modalRecipeName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">配方类型</label>
+                        <select class="form-select" name="recipe_type" id="modalRecipeType" required>
+                            <option value="经典">经典</option>
+                            <option value="特调">特调</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">原料</label>
@@ -590,11 +598,12 @@
         }
         modal.show();
     }
-    function openRecipeModal(id, name, ingredientsText, instructions, ingredientsJson=[]) {
+    function openRecipeModal(id, name, ingredientsText, instructions, ingredientsJson=[], recipeType='经典') {
         const modal = new bootstrap.Modal(document.getElementById('recipeModal'));
         const title = document.getElementById('recipeModalTitle');
         const idInput = document.getElementById('modalRecipeId');
         const nameInput = document.getElementById('modalRecipeName');
+        const recipeTypeInput = document.getElementById('modalRecipeType');
         const ingredientsTextInput = document.getElementById('modalRecipeIngredientsText'); // Hidden legacy text
         const instructionsInput = document.getElementById('modalRecipeInstructions');
         const rowsContainer = document.getElementById('ingredientRows');
@@ -606,6 +615,7 @@
             title.textContent = '编辑配方';
             idInput.value = id;
             nameInput.value = name;
+            recipeTypeInput.value = recipeType;
             ingredientsTextInput.value = ingredientsText;
             instructionsInput.value = instructions;
             
@@ -627,6 +637,7 @@
             title.textContent = '新建配方';
             idInput.value = '';
             nameInput.value = '';
+            recipeTypeInput.value = '经典';  // Default to '经典'
             ingredientsTextInput.value = '';
             instructionsInput.value = '';
             addIngredientRow(); // Add one empty row
@@ -780,6 +791,31 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+    
+    function generateMenuBySpirit() {
+        const checkboxes = document.querySelectorAll('input[name="selected_recipes"]:checked');
+        if (checkboxes.length === 0) {
+            alert('请先选择至少一个配方！');
+            return;
+        }
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/generate_menu_by_spirit';
+        form.target = '_blank';
+        
+        checkboxes.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'selected_recipes';
+            input.value = cb.value;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
     }
 
     // Generate Recipe Card Image
