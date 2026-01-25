@@ -28,6 +28,9 @@ ClamHelper 是一个优雅的、基于 Web 的家庭聚会调酒辅助工具。�
 *   **📜 配方本 (Recipes)**
     *   管理您的经典配方或 AI 创意配方。
     *   支持手动创建、编辑和删除配方。
+    *   **PDF 酒单生成**：支持多选配方，一键生成优雅的**日式风格 PDF 酒单**（支持中文、自动分页与排版）。
+*   **🔐 安全保护**
+    *   支持简单的密码访问控制，保护您的私有酒单和数据。
 *   **👥 朋友管理**
     *   管理常来聚会的朋友名单。
 *   **📸 分享卡片**
@@ -72,6 +75,7 @@ cp .env.example .env
 编辑 `.env` 文件，填入您的 API Key（推荐使用阿里云百炼）：
 ```ini
 DASHSCOPE_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+APP_PASSWORD=your_secret_password  # 可选：设置访问密码
 ```
 
 ### 4. 运行应用
