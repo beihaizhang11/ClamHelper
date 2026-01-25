@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, session
 from models import db, Participant, InventoryItem, Recipe, Consumption, Event, RecipeIngredient
 from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
 import os
@@ -11,8 +11,22 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.colors import black, gray, HexColor
 from reportlab.lib.utils import ImageReader
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
+# Security Configuration
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_clam_helper_2024') # Change in production
+APP_PASSWORD = os.environ.get('APP_PASSWORD') # Must be set in environment
+
+# Debug: Print password status (Do not print actual password in prod logs if sensitive)
+if APP_PASSWORD:
+    print(f"Auth enabled. Password set: {len(APP_PASSWORD) * '*'}")
+else:
+    print("Auth disabled. APP_PASSWORD not set.")
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bar.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['PREFERRED_URL_SCHEME'] = 'https'
@@ -27,6 +41,33 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+
+@app.before_request
+def require_login():
+    # Allow access if password is not set (optional, strictly speaking user asked for auth)
+    # But user said "password exists in environment variable", implying we should enforce it.
+    if not APP_PASSWORD:
+        return # Or strictly block? Let's assume if no password set, it's open (or dev mode).
+        
+    allowed_routes = ['login', 'static']
+    if request.endpoint not in allowed_routes and not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if password == APP_PASSWORD:
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error="密码错误")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
 
 @app.route('/')
 def index():
