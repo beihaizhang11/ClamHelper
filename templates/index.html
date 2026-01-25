@@ -372,6 +372,7 @@
                 <h4>我的配方</h4>
                 <div>
                     <button type="submit" class="btn me-2" style="background-color: #fdfbf7; border-color: #333; color: #333;">📜 生成日式酒单 (PDF)</button>
+                    <button type="button" class="btn me-2" style="background-color: #c5a059; border-color: #333; color: #fff;" onclick="generateMenuBySpirit()">🥃 按基酒分类酒单 (测试)</button>
                     <button type="button" class="btn btn-success" onclick="openRecipeModal()">+ 新建配方</button>
                 </div>
             </div>
@@ -780,6 +781,31 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+    
+    function generateMenuBySpirit() {
+        const checkboxes = document.querySelectorAll('input[name="selected_recipes"]:checked');
+        if (checkboxes.length === 0) {
+            alert('请先选择至少一个配方！');
+            return;
+        }
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/generate_menu_by_spirit';
+        form.target = '_blank';
+        
+        checkboxes.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'selected_recipes';
+            input.value = cb.value;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
     }
 
     // Generate Recipe Card Image

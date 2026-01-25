@@ -464,7 +464,7 @@ def generate_menu():
         c.setFillColor(text_sub)
         if r.ingredients:
             # Replace newlines with a refined separator
-            ing_text = r.ingredients.replace('\r\n', '   •   ').replace('\n', '   •   ')
+            ing_text = r.ingredients.replace('\r\n', '  |  ').replace('\n', '  |  ')
             
             # Text wrapping logic
             max_width = width - 60*mm  # Margins: 30mm each side
@@ -475,12 +475,12 @@ def generate_menu():
             else:
                 # Simple split logic (by separator first, then simple chunking if needed)
                 # Since we replaced newlines with separators, let's try to split by separator to find good break points
-                parts = ing_text.split('   •   ')
+                parts = ing_text.split('  |  ')
                 lines = []
                 current_line = ""
                 
                 for part in parts:
-                    test_line = current_line + ('   •   ' if current_line else '') + part
+                    test_line = current_line + ('  |  ' if current_line else '') + part
                     if c.stringWidth(test_line, font_name, 10) <= max_width:
                         current_line = test_line
                     else:
@@ -531,6 +531,207 @@ def generate_menu():
     # Force charset to UTF-8 in headers
     response.headers["Content-Type"] = "application/pdf; charset=utf-8"
     
+    return response
+
+@app.route('/generate_menu_by_spirit', methods=['POST'])
+def generate_menu_by_spirit():
+    recipe_ids = request.form.getlist('selected_recipes')
+    recipes = Recipe.query.filter(Recipe.id.in_(recipe_ids)).all()
+    inventory = InventoryItem.query.all()
+    
+    # Create inventory lookup: name -> category
+    inventory_map = {item.name.lower(): item.category for item in inventory}
+    
+    # Define base spirit categories
+    base_spirits = ['Whisky', 'Brandy', 'Tequila', 'Gin', 'Rum', 'Vodka']
+    
+    # Group recipes by base spirit
+    grouped_recipes = {spirit: [] for spirit in base_spirits}
+    grouped_recipes['Other'] = []  # For recipes without clear base spirit
+    
+    for recipe in recipes:
+        # Find the base spirit from ingredients
+        base_spirit = None
+        for ing in recipe.ingredients_structured:
+            ing_name_lower = ing.name.lower()
+            if ing_name_lower in inventory_map:
+                category = inventory_map[ing_name_lower]
+                if category in base_spirits:
+                    base_spirit = category
+                    break
+        
+        if base_spirit:
+            grouped_recipes[base_spirit].append(recipe)
+        else:
+            grouped_recipes['Other'].append(recipe)
+    
+    # Remove empty categories
+    grouped_recipes = {k: v for k, v in grouped_recipes.items() if v}
+    
+    # Generate PDF
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    # Font setup (same as original)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    font_path = os.path.join(base_dir, 'fonts', 'simkai.ttf')
+    font_name = 'Helvetica'
+    
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('KaiTi', font_path))
+            font_name = 'KaiTi'
+        except Exception as e:
+            print(f"Font loading error: {e}")
+            sys_font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+            if os.path.exists(sys_font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('KaiTi', sys_font_path))
+                    font_name = 'KaiTi'
+                except:
+                    pass
+    else:
+        sys_font_path = "C:\\Windows\\Fonts\\simkai.ttf"
+        if os.path.exists(sys_font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('KaiTi', sys_font_path))
+                font_name = 'KaiTi'
+            except:
+                pass
+    
+    # Colors
+    bg_color = HexColor('#F9F7F2')
+    text_main = HexColor('#333333')
+    text_sub = HexColor('#5F5F5F')
+    accent_color = HexColor('#C5A059')
+    seal_red = HexColor('#B22222')
+    
+    def draw_page_template(c):
+        c.setFillColor(bg_color)
+        c.rect(0, 0, width, height, fill=1, stroke=0)
+        c.setStrokeColor(text_main)
+        c.setLineWidth(0.5)
+        c.rect(15*mm, 15*mm, width-30*mm, height-30*mm)
+        c.setStrokeColor(accent_color)
+        c.setLineWidth(0.3)
+        c.rect(18*mm, 18*mm, width-36*mm, height-36*mm)
+    
+    draw_page_template(c)
+    
+    # Title
+    c.setFillColor(text_main)
+    c.setFont(font_name, 32)
+    c.drawCentredString(width / 2, height - 50*mm, "酒 单")
+    
+    c.setFont(font_name, 10)
+    c.setFillColor(text_sub)
+    date_str = datetime.now().strftime('%Y . %m . %d')
+    c.drawCentredString(width / 2, height - 60*mm, f"The Drunken Clam  |  {date_str}")
+    
+    # Red Seal
+    seal_size = 12*mm
+    seal_x = (width / 2) + 40*mm
+    seal_y = height - 55*mm
+    c.setFillColor(seal_red)
+    c.rect(seal_x, seal_y, seal_size, seal_size, fill=1, stroke=0)
+    c.setFillColor(HexColor('#FFFFFF'))
+    c.setFont(font_name, 18)
+    c.drawString(seal_x + 2*mm, seal_y + 3*mm, "蛤")
+    
+    y = height - 80*mm
+    
+    # Spirit name mapping (Category-based format)
+    spirit_names = {
+        'Whisky': 'WHISKY BASED',
+        'Brandy': 'BRANDY BASED',
+        'Tequila': 'TEQUILA BASED',
+        'Gin': 'GIN BASED',
+        'Rum': 'RUM BASED',
+        'Vodka': 'VODKA BASED',
+        'Other': 'SPECIALTY'
+    }
+    
+    # Draw recipes grouped by spirit
+    for spirit, recipes_in_group in grouped_recipes.items():
+        # Check if need new page
+        if y < 80*mm:
+            c.showPage()
+            draw_page_template(c)
+            y = height - 50*mm
+        
+        # Spirit Category Title
+        c.setFont(font_name, 20)
+        c.setFillColor(accent_color)
+        spirit_display = spirit_names.get(spirit, spirit)
+        c.drawCentredString(width / 2, y, f"━━ {spirit_display} ━━")
+        y -= 15*mm
+        
+        # Draw recipes in this group
+        for r in recipes_in_group:
+            if y < 40*mm:
+                c.showPage()
+                draw_page_template(c)
+                y = height - 50*mm
+            
+            # Recipe Name
+            c.setFont(font_name, 16)
+            c.setFillColor(text_main)
+            c.drawCentredString(width / 2, y, r.name)
+            
+            # Ingredients
+            y -= 8*mm
+            c.setFont(font_name, 10)
+            c.setFillColor(text_sub)
+            if r.ingredients:
+                ing_text = r.ingredients.replace('\r\n', '  |  ').replace('\n', '  |  ')
+                max_width = width - 60*mm
+                text_width = c.stringWidth(ing_text, font_name, 10)
+                
+                if text_width <= max_width:
+                    c.drawCentredString(width / 2, y, ing_text)
+                else:
+                    parts = ing_text.split('  |  ')
+                    lines = []
+                    current_line = ""
+                    for part in parts:
+                        test_line = current_line + ('  |  ' if current_line else '') + part
+                        if c.stringWidth(test_line, font_name, 10) <= max_width:
+                            current_line = test_line
+                        else:
+                            if current_line:
+                                lines.append(current_line)
+                            current_line = part
+                    if current_line:
+                        lines.append(current_line)
+                    
+                    for line in lines:
+                        c.drawCentredString(width / 2, y, line)
+                        y -= 5*mm
+            
+            # Separator
+            y -= 10*mm
+            c.setStrokeColor(accent_color)
+            c.setLineWidth(0.5)
+            c.line(width/2 - 10*mm, y, width/2 + 10*mm, y)
+            y -= 12*mm
+        
+        # Add extra space after each category
+        y -= 5*mm
+    
+    c.save()
+    buffer.seek(0)
+    
+    date_str = datetime.now().strftime('%Y%m%d')
+    filename = f'Menu_BySpirit_{date_str}.pdf'
+    
+    response = send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/pdf'
+    )
+    response.headers["Content-Type"] = "application/pdf; charset=utf-8"
     return response
 
 @app.route('/create_event', methods=['POST'])
