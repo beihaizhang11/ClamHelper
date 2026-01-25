@@ -495,15 +495,15 @@ def generate_menu():
                     c.drawCentredString(width / 2, y, line)
                     y -= 5*mm # Line height
                     
-        # Decorative Separator (Gold Dash)
-        y -= 10*mm
-        # Only draw separator if not the last item on page (simplified)
-        c.setStrokeColor(accent_color)
-        c.setLineWidth(0.5)
-        c.line(width/2 - 10*mm, y, width/2 + 10*mm, y) # Short center line
-        
-        # Move down for next item
-        y -= 12*mm
+        # Decorative Separator (Gold Dash) - Only if not the last recipe
+        if i < len(recipes) - 1:
+            y -= 10*mm
+            c.setStrokeColor(accent_color)
+            c.setLineWidth(0.5)
+            c.line(width/2 - 10*mm, y, width/2 + 10*mm, y) # Short center line
+            y -= 12*mm
+        else:
+            y -= 10*mm
 
     c.save()
     buffer.seek(0)
@@ -669,7 +669,7 @@ def generate_menu_by_spirit():
         y -= 15*mm
         
         # Draw recipes in this group
-        for r in recipes_in_group:
+        for idx, r in enumerate(recipes_in_group):
             if y < 40*mm:
                 c.showPage()
                 draw_page_template(c)
@@ -710,12 +710,15 @@ def generate_menu_by_spirit():
                         c.drawCentredString(width / 2, y, line)
                         y -= 5*mm
             
-            # Separator
-            y -= 10*mm
-            c.setStrokeColor(accent_color)
-            c.setLineWidth(0.5)
-            c.line(width/2 - 10*mm, y, width/2 + 10*mm, y)
-            y -= 12*mm
+            # Separator - Only if not the last recipe in this group
+            if idx < len(recipes_in_group) - 1:
+                y -= 10*mm
+                c.setStrokeColor(accent_color)
+                c.setLineWidth(0.5)
+                c.line(width/2 - 10*mm, y, width/2 + 10*mm, y)
+                y -= 12*mm
+            else:
+                y -= 10*mm
         
         # Add extra space after each category
         y -= 5*mm
