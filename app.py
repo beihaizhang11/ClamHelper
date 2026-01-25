@@ -523,13 +523,14 @@ def generate_menu():
         
     response = send_file(
         buffer, 
-        as_attachment=True, 
+        as_attachment=False,  # Preview in browser instead of download
         download_name=f'Menu_{date_str}.pdf', 
         mimetype='application/pdf'
     )
     
     # Force charset to UTF-8 in headers
     response.headers["Content-Type"] = "application/pdf; charset=utf-8"
+    response.headers["Content-Disposition"] = f"inline; filename=Menu_{date_str}.pdf"
     
     return response
 
@@ -727,11 +728,12 @@ def generate_menu_by_spirit():
     
     response = send_file(
         buffer,
-        as_attachment=True,
+        as_attachment=False,  # Preview in browser instead of download
         download_name=filename,
         mimetype='application/pdf'
     )
     response.headers["Content-Type"] = "application/pdf; charset=utf-8"
+    response.headers["Content-Disposition"] = f"inline; filename={filename}"
     return response
 
 @app.route('/create_event', methods=['POST'])
