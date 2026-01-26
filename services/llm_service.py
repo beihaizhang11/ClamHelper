@@ -46,7 +46,7 @@ def get_cocktail_suggestion(inventory_list, user_request):
     """
 
     payload = {
-        "model": "qwen-plus",
+        "model": "qwen3-max",
         "messages": [
             {"role": "system", "content": "你是一位专业的调酒师助手。请只返回 JSON 格式的数据。"},
             {"role": "user", "content": prompt}
@@ -104,7 +104,7 @@ def generate_event_summary(event_name, date_str, stats_summary):
     """
     
     payload = {
-        "model": "qwen-plus",
+        "model": "qwen3-max",
         "messages": [
             {"role": "system", "content": "你是一位经营日式酒吧多年的老板，见惯了悲欢离合，说话温和而有深意。"},
             {"role": "user", "content": prompt}
@@ -163,7 +163,7 @@ def get_omakase_suggestion(inventory_list, mood, weather):
     """
 
     payload = {
-        "model": "qwen-plus",
+        "model": "qwen3-max",
         "messages": [
             {"role": "system", "content": "你是一位拥有20年经验的日式酒吧老板 Kenji。请只返回 JSON 格式的数据。"},
             {"role": "user", "content": prompt}
