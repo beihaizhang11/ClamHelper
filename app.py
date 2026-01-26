@@ -61,8 +61,8 @@ def login():
             session['logged_in'] = True
             return redirect(url_for('index'))
         else:
-            return render_template('login.html', error="密码错误")
-    return render_template('login.html')
+            return render_template('login.html', error="密码错误", icp_number=os.environ.get('ICP_NUMBER'))
+    return render_template('login.html', icp_number=os.environ.get('ICP_NUMBER'))
 
 @app.route('/logout')
 def logout():

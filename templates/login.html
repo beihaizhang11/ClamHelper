@@ -46,5 +46,13 @@
             </form>
         </div>
     </div>
+
+    {% if icp_number %}
+    <footer style="position: fixed; bottom: 20px; width: 100%; text-align: center; color: #888; font-size: 0.8rem;">
+        <a href="https://beian.miit.gov.cn/" target="_blank" style="color: inherit; text-decoration: none;">
+            {{ icp_number }}
+        </a>
+    </footer>
+    {% endif %}
 </body>
 </html>
