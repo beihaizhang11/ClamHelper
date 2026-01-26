@@ -590,6 +590,12 @@ def generate_menu_by_spirit():
     # Define base spirit categories
     base_spirits = ['Whisky', 'Brandy', 'Tequila', 'Gin', 'Rum', 'Vodka']
     
+    # Create a mapping of category -> list of spirit names in inventory
+    spirits_in_inventory = {spirit: [] for spirit in base_spirits}
+    for item in inventory:
+        if item.category in base_spirits:
+            spirits_in_inventory[item.category].append(item.name)
+    
     # First, separate by recipe type: 经典 and 特调
     classic_recipes = [r for r in recipes if r.recipe_type == '经典']
     signature_recipes = [r for r in recipes if r.recipe_type == '特调']
@@ -730,7 +736,7 @@ def generate_menu_by_spirit():
     # Establishment name (moved down)
     c.setFont(font_name, 14)
     c.setFillColor(text_sub)
-    c.drawCentredString(width / 2, height / 2 - 40*mm, "The Drunken Clam")
+    c.drawCentredString(width / 2, height / 2 - 40*mm, "We love the Clam")
     
     # Date (moved down)
     c.setFont(font_name, 11)
@@ -800,7 +806,42 @@ def generate_menu_by_spirit():
             c.setFillColor(accent_color)
             spirit_display = spirit_names.get(spirit, spirit)
             c.drawCentredString(width / 2, y, f"━━ {spirit_display} ━━")
-            y -= 15*mm
+            y -= 8*mm
+            
+            # Display available spirits in inventory (small text)
+            if spirit in spirits_in_inventory and spirits_in_inventory[spirit]:
+                c.setFont(font_name, 9)
+                c.setFillColor(accent_color)
+                spirits_text = "可选：" + " · ".join(spirits_in_inventory[spirit])
+                # Wrap text if too long
+                max_width = width - 60*mm
+                text_width = c.stringWidth(spirits_text, font_name, 9)
+                
+                if text_width <= max_width:
+                    c.drawCentredString(width / 2, y, spirits_text)
+                    y -= 10*mm
+                else:
+                    # Split into multiple lines if needed
+                    spirits_list = spirits_in_inventory[spirit]
+                    lines = []
+                    current_line = ""
+                    for spirit_name in spirits_list:
+                        test_line = current_line + (" · " if current_line else "") + spirit_name
+                        if c.stringWidth(test_line, font_name, 9) <= max_width:
+                            current_line = test_line
+                        else:
+                            if current_line:
+                                lines.append(current_line)
+                            current_line = spirit_name
+                    if current_line:
+                        lines.append(current_line)
+                    
+                    for line in lines:
+                        c.drawCentredString(width / 2, y, line)
+                        y -= 5*mm
+                    y -= 5*mm
+            else:
+                y -= 7*mm
             
             # Draw recipes in this group
             for idx, r in enumerate(recipes_in_group):
