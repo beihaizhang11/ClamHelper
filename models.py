@@ -24,9 +24,19 @@ class InventoryItem(db.Model):
 class Recipe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    ingredients = db.Column(db.Text, nullable=False) 
+    ingredients = db.Column(db.Text, nullable=True) # Legacy text field
     instructions = db.Column(db.Text, nullable=False)
-    is_generated = db.Column(db.Boolean, default=False) 
+    is_generated = db.Column(db.Boolean, default=False)
+    recipe_type = db.Column(db.String(20), default='经典')  # '经典' or '特调'
+    # New relationship
+    ingredients_structured = db.relationship('RecipeIngredient', backref='recipe', lazy=True, cascade="all, delete-orphan")
+
+class RecipeIngredient(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipe.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    amount = db.Column(db.Float, default=0.0)
+    unit = db.Column(db.String(20), default="ml")
 
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,3 +53,4 @@ class Consumption(db.Model):
     drink_name = db.Column(db.String(100), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=True) # 关联到活动
+    recipe_id = db.Column(db.Integer, db.ForeignKey('recipe.id'), nullable=True) # 关联到配方
