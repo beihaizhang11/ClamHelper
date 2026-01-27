@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, session
-from models import db, Participant, InventoryItem, Recipe, Consumption, Event, RecipeIngredient
+from models import db, Participant, InventoryItem, Recipe, Consumption, Event, RecipeIngredient, Bartender
 from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
 import os
 from datetime import datetime, timedelta
@@ -779,27 +779,45 @@ def generate_menu_by_spirit():
     c.setLineWidth(0.8)
     c.line(width/2 - 40*mm, y, width/2 + 40*mm, y)
     
-    # Head Mixologist section
-    y -= 20*mm
-    c.setFont(font_name, 16)
-    c.setFillColor(accent_color)
-    c.drawCentredString(width / 2, y, "首席调酒师 | Clam Master")
+    # Dynamic Bartender Section
+    bartenders = Bartender.query.filter_by(is_active=True).order_by(Bartender.order).all()
     
-    y -= 10*mm
-    c.setFont(font_name, 14)
-    c.setFillColor(text_main)
-    c.drawCentredString(width / 2, y, "Bohan Zhang · Yunhan Gao")
+    current_title = None
+    current_names = []
+    grouped_bartenders = []
     
-    # Guest Bartender section
-    y -= 20*mm
-    c.setFont(font_name, 16)
-    c.setFillColor(accent_color)
-    c.drawCentredString(width / 2, y, "客座调酒师 | Guest Bartender")
-    
-    y -= 10*mm
-    c.setFont(font_name, 14)
-    c.setFillColor(text_main)
-    c.drawCentredString(width / 2, y, "Yunhao Gao")
+    for b in bartenders:
+        if b.title != current_title:
+            if current_title:
+                grouped_bartenders.append((current_title, current_names))
+            current_title = b.title
+            current_names = [b.name]
+        else:
+            current_names.append(b.name)
+    if current_title:
+        grouped_bartenders.append((current_title, current_names))
+        
+    if not grouped_bartenders:
+        # Fallback if no data
+        y -= 20*mm
+        c.setFont(font_name, 16)
+        c.setFillColor(accent_color)
+        c.drawCentredString(width / 2, y, "首席调酒师 | Head Bartender")
+        y -= 10*mm
+        c.setFont(font_name, 14)
+        c.setFillColor(text_main)
+        c.drawCentredString(width / 2, y, "Unknown")
+    else:
+        for title, names in grouped_bartenders:
+            y -= 20*mm
+            c.setFont(font_name, 16)
+            c.setFillColor(accent_color)
+            c.drawCentredString(width / 2, y, title)
+            
+            y -= 10*mm
+            c.setFont(font_name, 14)
+            c.setFillColor(text_main)
+            c.drawCentredString(width / 2, y, " · ".join(names))
     
     # Introduction text
     y -= 20*mm
@@ -1105,6 +1123,48 @@ def remove_recipe_from_event(event_id):
         db.session.commit()
         
     return redirect(url_for('index', _anchor='events'))
+
+@app.route('/get_bartenders', methods=['GET'])
+def get_bartenders():
+    bartenders = Bartender.query.order_by(Bartender.order).all()
+    return jsonify([{
+        'id': b.id,
+        'name': b.name,
+        'title': b.title,
+        'is_active': b.is_active,
+        'order': b.order
+    } for b in bartenders])
+
+@app.route('/save_bartender', methods=['POST'])
+def save_bartender():
+    b_id = request.form.get('id')
+    name = request.form.get('name')
+    title = request.form.get('title')
+    order = request.form.get('order', 0)
+    is_active = request.form.get('is_active') == 'true'
+    
+    if b_id:
+        b = Bartender.query.get(b_id)
+        if b:
+            b.name = name
+            b.title = title
+            b.order = int(order)
+            b.is_active = is_active
+            db.session.commit()
+    else:
+        b = Bartender(name=name, title=title, order=int(order), is_active=is_active)
+        db.session.add(b)
+        db.session.commit()
+        
+    return jsonify({'success': True})
+
+@app.route('/delete_bartender/<int:b_id>', methods=['POST'])
+def delete_bartender(b_id):
+    b = Bartender.query.get(b_id)
+    if b:
+        db.session.delete(b)
+        db.session.commit()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

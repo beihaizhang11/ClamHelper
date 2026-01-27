@@ -348,7 +348,10 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="card p-4">
-                        <h4>添加新朋友</h4>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4 class="mb-0">添加新朋友</h4>
+                            <button class="btn btn-outline-dark btn-sm" onclick="openBartenderModal()">👨‍🍳 管理调酒师</button>
+                        </div>
                         <form action="/add_participant" method="POST" class="d-flex gap-2">
                             <input type="text" class="form-control" name="name" placeholder="名字" required>
                             <button type="submit" class="btn btn-primary">添加</button>
@@ -558,8 +561,134 @@
     </div>
 </div>
 
+<!-- Bartender Modal -->
+<div class="modal fade" id="bartenderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">👨‍🍳 调酒师管理</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <form id="bartenderForm" onsubmit="event.preventDefault(); saveBartender();" class="row g-2 align-items-end">
+                            <input type="hidden" id="bartenderId">
+                            <div class="col-md-3">
+                                <label class="form-label small">姓名</label>
+                                <input type="text" class="form-control" id="bartenderName" placeholder="Name" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">头衔 (Title)</label>
+                                <input type="text" class="form-control" id="bartenderTitle" placeholder="e.g. Head Mixologist" required list="titleList">
+                                <datalist id="titleList">
+                                    <option value="首席调酒师 | Clam Master">
+                                    <option value="客座调酒师 | Guest Bartender">
+                                </datalist>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">排序</label>
+                                <input type="number" class="form-control" id="bartenderOrder" value="0">
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" id="bartenderActive" checked>
+                                    <label class="form-check-label">启用</label>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary w-100">保存</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <hr>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>排序</th>
+                                <th>姓名</th>
+                                <th>头衔</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bartenderTableBody">
+                            <!-- JS Injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    function openBartenderModal() {
+        const modal = new bootstrap.Modal(document.getElementById('bartenderModal'));
+        modal.show();
+        loadBartenders();
+    }
+
+    function loadBartenders() {
+        fetch('/get_bartenders')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('bartenderTableBody');
+                tbody.innerHTML = '';
+                data.forEach(b => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${b.order}</td>
+                        <td>${b.name}</td>
+                        <td>${b.title}</td>
+                        <td>${b.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editBartender(${b.id}, '${b.name}', '${b.title}', ${b.order}, ${b.is_active})">✏️</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteBartender(${b.id})">🗑️</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+    }
+
+    function saveBartender() {
+        const formData = new FormData();
+        formData.append('id', document.getElementById('bartenderId').value);
+        formData.append('name', document.getElementById('bartenderName').value);
+        formData.append('title', document.getElementById('bartenderTitle').value);
+        formData.append('order', document.getElementById('bartenderOrder').value);
+        formData.append('is_active', document.getElementById('bartenderActive').checked);
+
+        fetch('/save_bartender', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('bartenderForm').reset();
+                    document.getElementById('bartenderId').value = '';
+                    loadBartenders();
+                }
+            });
+    }
+
+    function editBartender(id, name, title, order, active) {
+        document.getElementById('bartenderId').value = id;
+        document.getElementById('bartenderName').value = name;
+        document.getElementById('bartenderTitle').value = title;
+        document.getElementById('bartenderOrder').value = order;
+        document.getElementById('bartenderActive').checked = active;
+    }
+
+    function deleteBartender(id) {
+        if(confirm('Delete this bartender?')) {
+            fetch('/delete_bartender/' + id, { method: 'POST' })
+                .then(() => loadBartenders());
+        }
+    }
+
     function addIngredientRow(name='', amount='', unit='') {
         const container = document.getElementById('ingredientRows');
         const div = document.createElement('div');
