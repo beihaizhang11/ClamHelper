@@ -2,43 +2,6 @@
 
 All notable changes to the **ClamHelper** project will be documented in this file.
 
-## [0.4.0] - 2026-01-25
-
-### Added
-- **Authentication System**:
-    - 全局**密码保护**功能，通过环境变量 `APP_PASSWORD` 配置。
-    - 独立且风格统一的**登录页面**，支持自动重定向。
-- **Japanese Menu (PDF)**:
-    - 配方本新增**“生成日式酒单”**功能。
-    - 自动生成极简风格的 PDF 菜单（A4），支持多页。
-    - 采用 **KaiTi (楷体)** 字体，支持 UTF-8 中文显示。
-    - 智能文本换行逻辑，防止长配方超出页面宽度。
-- **Ingredient Usage Stats**:
-    - 活动统计页面新增**“原料消耗统计”**功能。
-    - 自动计算每场活动中各基酒、利口酒和辅料的总消耗量。
-- **Structured Recipe Data**:
-    - 数据库新增 `RecipeIngredient` 表，支持结构化存储原料（名称、用量、单位）。
-    - 配方编辑器升级，支持**动态添加/删除原料行**。
-    - 引入 `<datalist>` 实现原料名称的自动补全（基于现有库存）。
-
-### Changed
-- **Frontend Refinement**:
-    - 登录页面 UI 升级为与主站一致的日式风格。
-    - 配方列表卡片现支持**多选**，用于批量生成 PDF 酒单。
-    - 优化了统计页面的 CSS，修复了深色背景下的文字可见性问题。
-- **AI Integration**:
-    - 更新 AI Prompt，使其返回结构化的 JSON 原料数组（Name/Amount/Unit），无缝对接新数据库结构。
-    - 修复了 AI 生成配方在前端渲染为 `[object Object]` 的显示 Bug。
-- **Business Logic**:
-    - 首页“今日战况”的统计逻辑更新为**“营业日”模式**（当日 04:00 至次日 04:00）。
-
-### Fixed
-- **Deployment**:
-    - 修复了 PDF 生成时的字体依赖问题，现支持从项目根目录 `fonts/` 加载本地字体，确保服务器部署时的中文显示正常。
-    - 修复了 `.env` 文件加载问题，引入 `python-dotenv` 自动读取环境变量。
-
----
-
 ## [Unreleased]
 
 ### Added
