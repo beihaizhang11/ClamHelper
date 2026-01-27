@@ -763,6 +763,83 @@ def generate_menu_by_spirit():
     
     # ========== END OF COVER PAGE ==========
     
+    # ========== BARTENDER INTRODUCTION PAGE ==========
+    c.showPage()
+    draw_page_template(c)
+    
+    # Page title
+    y = height - 60*mm
+    c.setFont(title_font_name, 28)
+    c.setFillColor(text_main)
+    c.drawCentredString(width / 2, y, "Tonight's Bartender")
+    
+    # Decorative line
+    y -= 8*mm
+    c.setStrokeColor(accent_color)
+    c.setLineWidth(0.8)
+    c.line(width/2 - 40*mm, y, width/2 + 40*mm, y)
+    
+    # Head Mixologist section
+    y -= 20*mm
+    c.setFont(font_name, 16)
+    c.setFillColor(accent_color)
+    c.drawCentredString(width / 2, y, "首席调酒师 | Clam Master")
+    
+    y -= 10*mm
+    c.setFont(font_name, 14)
+    c.setFillColor(text_main)
+    c.drawCentredString(width / 2, y, "Bohan Zhang · Yunhan Gao")
+    
+    # Guest Bartender section
+    y -= 20*mm
+    c.setFont(font_name, 16)
+    c.setFillColor(accent_color)
+    c.drawCentredString(width / 2, y, "客座调酒师 | Guest Bartender")
+    
+    y -= 10*mm
+    c.setFont(font_name, 14)
+    c.setFillColor(text_main)
+    c.drawCentredString(width / 2, y, "Yunhao Gao")
+    
+    # Introduction text
+    y -= 20*mm
+    c.setFont(font_name, 11)
+    c.setFillColor(text_main)
+    
+    intro_lines = [
+        "用心调制每一杯鸡尾酒",
+        "以热情与专业为您带来难忘的味觉体验",
+        "",
+        "Each cocktail is crafted with passion,",
+        "dedication, and years of expertise."
+    ]
+    
+    for line in intro_lines:
+        c.drawCentredString(width / 2, y, line)
+        y -= 7*mm
+    
+    # Decorative cocktail icon
+    y -= 15*mm
+    center_x = width / 2
+    c.setStrokeColor(accent_color)
+    c.setFillColor(accent_color)
+    c.setLineWidth(1.0)
+    
+    # Cocktail shaker icon
+    shaker_width = 8*mm
+    shaker_height = 12*mm
+    # Body of shaker
+    c.rect(center_x - shaker_width/2, y - shaker_height, shaker_width, shaker_height, stroke=1, fill=0)
+    # Top cap
+    c.rect(center_x - shaker_width/2 - 1*mm, y, shaker_width + 2*mm, 2*mm, stroke=1, fill=1)
+    
+    # Bottom signature
+    c.setFont(font_name, 9)
+    c.setFillColor(text_sub)
+    c.drawCentredString(width / 2, 50*mm, "— We craft moments, not just drinks —")
+    
+    # ========== END OF BARTENDER PAGE ==========
+    
     # Spirit name mapping (Category-based format)
     spirit_names = {
         'Gin': 'Gin Based',
