@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, session
 from models import db, Participant, InventoryItem, Recipe, Consumption, Event, RecipeIngredient, Bartender
-from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion
+from services.llm_service import get_cocktail_suggestion, generate_event_summary, get_omakase_suggestion, get_sommelier_recommendation
 import os
 from datetime import datetime, timedelta
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -299,6 +299,49 @@ def omakase():
         suggestion = get_omakase_suggestion(inventory_list, mood, weather)
         # suggestion is now a dict
         return jsonify(suggestion)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/sommelier_recommend', methods=['POST'])
+def sommelier_recommend():
+    """专业侍酒师推荐（从现有配方中选择）"""
+    try:
+        # 读取所有配方
+        recipes = Recipe.query.all()
+        if not recipes:
+            return jsonify({'error': '配方本为空，请先添加配方'}), 400
+        
+        # 构造配方数据
+        recipes_data = []
+        for r in recipes:
+            ingredients_str = ", ".join([
+                f"{ing.name} {ing.amount}{ing.unit}" 
+                for ing in r.ingredients_structured
+            ])
+            recipes_data.append({
+                'name': r.name,
+                'ingredients': ingredients_str,
+                'id': r.id
+            })
+        
+        user_request = request.form.get('user_request', '')
+        if not user_request:
+            return jsonify({'error': '请描述您的需求'}), 400
+        
+        # 调用侍酒师推荐服务
+        result = get_sommelier_recommendation(recipes_data, user_request)
+        
+        # 如果成功推荐，补充配方ID
+        if 'recommendation' in result and 'name' in result['recommendation']:
+            recommended_name = result['recommendation']['name']
+            # 查找对应的配方ID
+            for r in recipes_data:
+                if r['name'] == recommended_name:
+                    result['recommendation']['recipe_id'] = r['id']
+                    break
+        
+        return jsonify(result)
+    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
