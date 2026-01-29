@@ -264,7 +264,16 @@
                             <div class="card p-4">
                                 <h4>我想喝...</h4>
                                 <p class="text-muted small">AI 会根据你的库存为你推荐。</p>
-                                <textarea id="userRequest" class="form-control mb-3" rows="4" placeholder="例如：我想喝点酸甜口味的，不要太烈，或者我想消耗一下那瓶金酒..."></textarea>
+                                <div class="position-relative mb-3">
+                                    <textarea id="userRequest" class="form-control" rows="4" placeholder="例如：我想喝点酸甜口味的，不要太烈，或者我想消耗一下那瓶金酒..."></textarea>
+                                    <button id="voiceInputBtn" class="btn btn-outline-secondary btn-sm position-absolute" style="bottom: 10px; right: 10px; border-radius: 50%; width: 40px; height: 40px; padding: 0;" title="语音输入">
+                                        <span id="voiceIcon">🎤</span>
+                                    </button>
+                                </div>
+                                <div id="voiceStatus" class="text-center small text-muted mb-2 d-none">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span id="voiceStatusText">正在聆听...</span>
+                                </div>
                                 <button id="btnAskAI" class="btn btn-warning w-100">✨ 帮我推荐</button>
                             </div>
                         </div>
@@ -896,6 +905,122 @@
         });
     }
 
+    // Voice Input Setup
+    let recognition = null;
+    let isListening = false;
+    
+    // Check browser support
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        
+        // Configuration
+        recognition.lang = 'zh-CN'; // Chinese language
+        recognition.continuous = false; // Stop after one phrase
+        recognition.interimResults = true; // Show partial results
+        recognition.maxAlternatives = 1;
+        
+        const voiceBtn = document.getElementById('voiceInputBtn');
+        const voiceIcon = document.getElementById('voiceIcon');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceStatusText = document.getElementById('voiceStatusText');
+        const userRequestInput = document.getElementById('userRequest');
+        
+        // Start recognition on button click
+        voiceBtn.addEventListener('click', function() {
+            if (isListening) {
+                recognition.stop();
+                return;
+            }
+            
+            try {
+                recognition.start();
+                isListening = true;
+                voiceIcon.textContent = '⏸️';
+                voiceBtn.classList.remove('btn-outline-secondary');
+                voiceBtn.classList.add('btn-danger');
+                voiceStatus.classList.remove('d-none');
+                voiceStatusText.textContent = '正在聆听...';
+            } catch (e) {
+                console.error('Recognition error:', e);
+            }
+        });
+        
+        // Handle interim results (real-time feedback)
+        recognition.onresult = function(event) {
+            let interimTranscript = '';
+            let finalTranscript = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+            
+            // Show interim results
+            if (interimTranscript) {
+                voiceStatusText.textContent = `识别中: "${interimTranscript}"`;
+            }
+            
+            // Update textarea with final results
+            if (finalTranscript) {
+                userRequestInput.value = finalTranscript;
+                voiceStatusText.textContent = `✓ 识别完成: "${finalTranscript}"`;
+            }
+        };
+        
+        // Handle end of recognition
+        recognition.onend = function() {
+            isListening = false;
+            voiceIcon.textContent = '🎤';
+            voiceBtn.classList.remove('btn-danger');
+            voiceBtn.classList.add('btn-outline-secondary');
+            
+            // Hide status after 2 seconds
+            setTimeout(() => {
+                voiceStatus.classList.add('d-none');
+            }, 2000);
+        };
+        
+        // Handle errors
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            isListening = false;
+            voiceIcon.textContent = '🎤';
+            voiceBtn.classList.remove('btn-danger');
+            voiceBtn.classList.add('btn-outline-secondary');
+            
+            let errorMsg = '识别失败';
+            switch(event.error) {
+                case 'no-speech':
+                    errorMsg = '未检测到语音，请重试';
+                    break;
+                case 'audio-capture':
+                    errorMsg = '无法访问麦克风';
+                    break;
+                case 'not-allowed':
+                    errorMsg = '麦克风权限被拒绝';
+                    break;
+                default:
+                    errorMsg = `识别出错: ${event.error}`;
+            }
+            
+            voiceStatusText.textContent = errorMsg;
+            voiceStatus.classList.remove('d-none');
+            
+            setTimeout(() => {
+                voiceStatus.classList.add('d-none');
+            }, 3000);
+        };
+    } else {
+        // Browser doesn't support speech recognition
+        console.warn('Speech recognition not supported in this browser');
+        document.getElementById('voiceInputBtn').style.display = 'none';
+    }
+    
     // Direct Ask
     document.getElementById('btnAskAI').addEventListener('click', function() {
         const req = document.getElementById('userRequest').value;
