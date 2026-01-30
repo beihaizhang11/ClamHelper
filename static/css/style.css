@@ -260,3 +260,29 @@ body {
     }
 }
 
+/* Consumption Badge with Delete Button */
+.consumption-badge {
+    display: inline-flex;
+    align-items: center;
+    padding-right: 0.4rem;
+    transition: all 0.2s ease;
+}
+
+.consumption-badge:hover {
+    background-color: #5bc0de !important;
+}
+
+.consumption-badge .btn-close {
+    filter: invert(0.3);
+    opacity: 0.6;
+    padding: 0;
+    margin-left: 0.3rem;
+    width: 0.65rem;
+    height: 0.65rem;
+}
+
+.consumption-badge .btn-close:hover {
+    opacity: 1;
+    filter: invert(0) brightness(0) saturate(100%);
+}
+

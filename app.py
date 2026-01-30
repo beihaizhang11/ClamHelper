@@ -171,6 +171,14 @@ def log_drink():
         db.session.commit()
     return redirect(url_for('index', _anchor='drink'))
 
+@app.route('/delete_consumption/<int:consumption_id>', methods=['POST'])
+def delete_consumption(consumption_id):
+    consumption = Consumption.query.get(consumption_id)
+    if consumption:
+        db.session.delete(consumption)
+        db.session.commit()
+    return redirect(url_for('index', _anchor='drink'))
+
 @app.route('/event/<int:event_id>/stats')
 def event_stats(event_id):
     event = Event.query.get_or_404(event_id)

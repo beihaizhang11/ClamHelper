@@ -104,7 +104,12 @@
                                 <li class="list-group-item">
                                     <strong>{{ p.name }}</strong> 喝了:
                                     {% for c in p.today_consumptions %}
-                                        <span class="badge bg-info text-dark">{{ c.drink_name }}</span>
+                                        <span class="badge bg-info text-dark me-1 consumption-badge" style="cursor: pointer;" title="点击删除">
+                                            {{ c.drink_name }}
+                                            <form action="/delete_consumption/{{ c.id }}" method="POST" style="display: inline;" onsubmit="return confirm('确定删除这杯 {{ c.drink_name }} 吗？');">
+                                                <button type="submit" class="btn-close btn-close-white ms-1" style="font-size: 0.6rem; vertical-align: middle;" aria-label="删除"></button>
+                                            </form>
+                                        </span>
                                     {% endfor %}
                                 </li>
                                 {% endif %}
