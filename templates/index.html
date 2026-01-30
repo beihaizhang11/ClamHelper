@@ -494,6 +494,19 @@
                             <h3 class="text-warning d-none" id="result-text"></h3>
                         </div>
 
+                        <!-- Recipe Display Area -->
+                        <div id="recipe-display" class="d-none" style="max-width: 500px; margin: 0 auto 20px auto;">
+                            <div class="card" style="background: rgba(255,255,255,0.95); color: #333;">
+                                <div class="card-body">
+                                    <h5 class="card-title text-center mb-3" id="recipe-display-name"></h5>
+                                    <h6 class="text-muted">📝 配方：</h6>
+                                    <p class="small mb-3" style="white-space: pre-wrap;" id="recipe-display-ingredients"></p>
+                                    <h6 class="text-muted">🥣 步骤：</h6>
+                                    <p class="small text-muted" style="white-space: pre-wrap;" id="recipe-display-instructions"></p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="d-grid gap-2 col-6 mx-auto">
                             <button id="btnSpin" class="btn btn-warning btn-lg">🎰 开始旋转</button>
                         </div>
@@ -1295,19 +1308,36 @@
 
     // Roulette Logic
     let wheelRecipes = [];
+    let recipeDetails = {};
     
     function initRoulette() {
         // Collect recipes from the recipe list
-        // In a real scenario, this might come from an API, but we can parse the DOM for simplicity or inject JSON
-        // Let's inject JSON for reliability
         wheelRecipes = [
             {% for r in recipes %}
             "{{ r.name }}",
             {% endfor %}
         ];
         
+        // Store recipe details
+        recipeDetails = {
+            {% for r in recipes %}
+            "{{ r.name }}": {
+                ingredients: `{{ r.ingredients }}`,
+                instructions: `{{ r.instructions }}`
+            },
+            {% endfor %}
+        };
+        
         if (wheelRecipes.length < 2) {
             wheelRecipes = ["Gin Tonic", "Mojito", "Highball", "Whisky Sour", "Martini", "Negroni"]; // Fallback defaults
+            recipeDetails = {
+                "Gin Tonic": { ingredients: "金酒 45ml\n汤力水 适量\n青柠 1片", instructions: "在高球杯中加入冰块，倒入金酒，加入汤力水，用青柠装饰。" },
+                "Mojito": { ingredients: "白朗姆酒 50ml\n青柠 半个\n薄荷叶 10片\n苏打水 适量\n糖 2茶匙", instructions: "将薄荷叶、糖和青柠汁一起捣碎，加入朗姆酒和冰块，倒入苏打水，搅拌均匀。" },
+                "Highball": { ingredients: "威士忌 45ml\n苏打水 适量", instructions: "在高球杯中加入冰块，倒入威士忌，加入苏打水轻搅。" },
+                "Whisky Sour": { ingredients: "威士忌 60ml\n柠檬汁 30ml\n糖浆 15ml", instructions: "将所有材料加入摇酒器，加冰摇匀，滤入杯中。" },
+                "Martini": { ingredients: "金酒 60ml\n干味美思 10ml\n橄榄 1颗", instructions: "将金酒和味美思倒入调酒杯中，加冰搅拌，滤入马天尼杯，用橄榄装饰。" },
+                "Negroni": { ingredients: "金酒 30ml\n金巴利 30ml\n甜味美思 30ml", instructions: "将所有材料倒入古典杯中，加冰块搅拌均匀，用橙皮装饰。" }
+            };
         }
         
         drawWheel();
@@ -1410,9 +1440,12 @@
     document.getElementById('btnSpin').addEventListener('click', function() {
         const canvas = document.getElementById('wheelCanvas');
         const resultText = document.getElementById('result-text');
+        const recipeDisplay = document.getElementById('recipe-display');
         const btn = document.getElementById('btnSpin');
         
+        // Hide previous results
         resultText.classList.add('d-none');
+        recipeDisplay.classList.add('d-none');
         btn.disabled = true;
         
         // Random spin
@@ -1465,6 +1498,20 @@
             resultText.innerText = `🎉 命运选择了：${winner}！`;
             resultText.classList.remove('d-none');
             resultText.classList.add('fade-in');
+            
+            // Display recipe details
+            if (recipeDetails[winner]) {
+                document.getElementById('recipe-display-name').innerText = winner;
+                document.getElementById('recipe-display-ingredients').innerText = recipeDetails[winner].ingredients;
+                document.getElementById('recipe-display-instructions').innerText = recipeDetails[winner].instructions;
+                recipeDisplay.classList.remove('d-none');
+                
+                // Smooth scroll to recipe display
+                setTimeout(() => {
+                    recipeDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 300);
+            }
+            
             btn.disabled = false;
         }, 4000);
     });
