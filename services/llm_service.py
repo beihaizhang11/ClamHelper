@@ -221,3 +221,105 @@ def get_omakase_suggestion(inventory_list, mood, weather):
         return {"error": str(e)}
 
 
+def get_sommelier_recommendation(recipes_data, user_request):
+    """专业侍酒师风格的单一推荐"""
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
+    
+    if not api_key:
+        return {
+            "recommendation": {
+                "name": "经典马天尼 (Classic Martini)",
+                "presentation": "今晚，我想为您推荐一款经典马天尼...",
+                "tasting_notes": "入口冰冷纯净，中段金酒的植物香气缓缓释放...",
+                "pairing_reason": "它的简约与优雅，正如您所追求的品质。",
+                "service_tip": "建议冰镇至-5°C，使用马天尼杯，一饮而尽。"
+            }
+        }
+    
+    # 构造配方列表文本
+    recipes_text = "\n".join([
+        f"- {r['name']}：{r['ingredients']}" 
+        for r in recipes_data
+    ])
+    
+    prompt = f"""
+你是一位在米其林三星餐厅工作了15年的首席侍酒师 Alexandre。你深谙品鉴之道，擅长通过倾听客人的细微需求，为他们推荐最完美的一款酒。
+
+【当前酒单】
+{recipes_text}
+
+【客人需求】
+{user_request}
+
+【你的任务】
+请运用专业的侍酒师推销技巧，从酒单中选择**唯一一款**最适合客人的鸡尾酒。
+
+【推销技巧要求】
+1. 倾听理解：深入解读客人的真实需求（不仅是字面意思）
+2. 建立信任：展现你的专业知识，但语气温和而非炫耀
+3. 感官描述：用视觉、嗅觉、味觉的语言描绘这款酒
+4. 情感连接：将酒与客人的情绪、场景关联
+5. 明确推荐：自信地给出唯一推荐，避免"您也可以试试..."的犹豫
+6. 适度留白：给客人想象空间，不要说太满
+
+【输出格式（JSON）】
+{{
+    "name": "推荐的配方名称",
+    "presentation": "开场白（40-80字）：以'今晚，我想为您...'或'如果您允许，让我为您...'开始，用故事化的方式引出推荐，融入客人需求的关键词",
+    "tasting_notes": "品鉴描述（60-100字）：描述入口、中段、尾韵的味觉层次，使用专业术语但保持易懂",
+    "pairing_reason": "推荐理由（50-80字）：解释为什么这款酒与客人的需求完美契合，体现你对客人的理解",
+    "service_tip": "侍酒建议（30-50字）：给出专业的饮用建议（温度、杯具、饮用时机等），提升仪式感"
+}}
+
+【语气风格】
+- 优雅而不矫情
+- 专业而不生硬  
+- 热情而不夸张
+- 自信而不傲慢
+
+请只返回JSON，不要有其他内容。
+"""
+    
+    payload = {
+        "model": "qwen3-max",
+        "messages": [
+            {"role": "system", "content": "你是米其林三星餐厅的首席侍酒师 Alexandre，拥有15年侍酒经验。你的推荐总是精准且令人信服。"},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.85
+    }
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        resp = requests.post(
+            DASHSCOPE_URL,
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        
+        # Parse JSON
+        try:
+            cleaned_content = _clean_json_string(content)
+            result = json.loads(cleaned_content)
+            return {"recommendation": result}
+        except json.JSONDecodeError:
+            return {
+                "recommendation": {
+                    "name": "解析失败",
+                    "presentation": content[:200],
+                    "tasting_notes": "抱歉，侍酒师的笔记有些潦草...",
+                    "pairing_reason": "但我相信这会是个不错的选择。",
+                    "service_tip": ""
+                }
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
