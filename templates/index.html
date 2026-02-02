@@ -490,9 +490,9 @@
                             <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid #c5a059; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); z-index: 10;"></div>
                         </div>
 
-                        <div id="roulette-result" class="mb-4" style="min-height: 50px;">
-                            <h3 class="text-warning d-none" id="result-text"></h3>
-                        </div>
+                <div id="roulette-result" class="mb-4" style="min-height: 50px;">
+                    <h3 class="text-warning d-none" id="result-text"></h3>
+                </div>
 
                         <!-- Recipe Display Area -->
                         <div id="recipe-display" class="d-none" style="max-width: 500px; margin: 0 auto 20px auto;">
@@ -507,9 +507,9 @@
                             </div>
                         </div>
 
-                        <div class="d-grid gap-2 col-6 mx-auto">
-                            <button id="btnSpin" class="btn btn-warning btn-lg">🎰 开始旋转</button>
-                        </div>
+                <div class="d-grid gap-2 col-6 mx-auto">
+                    <button id="btnSpin" class="btn btn-warning btn-lg">🎰 开始旋转</button>
+                </div>
                     </div>
                 </div>
             </div>
@@ -1495,22 +1495,17 @@
         
         setTimeout(() => {
             const winner = wheelRecipes[randomSegmentIndex];
-            resultText.innerText = `🎉 命运选择了：${winner}！`;
+            
+            // Display cocktail name
+            resultText.innerText = `🎉 命运选择了：${winner.name}！`;
             resultText.classList.remove('d-none');
             resultText.classList.add('fade-in');
             
             // Display recipe details
-            if (recipeDetails[winner]) {
-                document.getElementById('recipe-display-name').innerText = winner;
-                document.getElementById('recipe-display-ingredients').innerText = recipeDetails[winner].ingredients;
-                document.getElementById('recipe-display-instructions').innerText = recipeDetails[winner].instructions;
-                recipeDisplay.classList.remove('d-none');
-                
-                // Smooth scroll to recipe display
-                setTimeout(() => {
-                    recipeDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 300);
-            }
+            document.getElementById('recipe-name-display').innerText = winner.name;
+            document.getElementById('recipe-ingredients-display').innerText = winner.ingredients || '暂无原料信息';
+            document.getElementById('recipe-instructions-display').innerText = winner.instructions || '暂无制作步骤';
+            recipeCardDisplay.classList.remove('d-none');
             
             btn.disabled = false;
         }, 4000);
